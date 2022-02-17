@@ -5,14 +5,18 @@ contract InvestorFactory is Platform{
 
     // put these in platforms.sol?
     // fillerValues, use extra zeroes as equivalent to decimal points
-    uint token1ratio = 1000;
-    uint token2ratio = 2000;
-    uint token3ratio = 3000;
+    uint token1ratio = 1000; //100% stop loss ratio
+    uint token2ratio = 2000; 
+    uint token3ratio = 3000; 
+
+    // change to three investor structs, each with different tokens
+    // make different contract for each token type
+
     struct Investor {
-        uint token1cnt;
+        uint token1cnt; //1 token = $1000 max loss -> 1000, #tokens = $maxloss
         uint token2cnt;
         uint token3cnt;
-        uint maxLoss;
+        uint maxLoss; //
         uint currLoss;
         uint value;
         // each token represents quantity of different ratioed (capital:maxloss) investments
@@ -28,8 +32,8 @@ contract InvestorFactory is Platform{
 
     Investor[] public investors;
 
-    function createInvestor(uint _token1cnt, uint _token2cnt, uint _token3cnt ) private {
-        require(investorToId[msg.sender] == 0);
+    function createInvestor(uint _token1cnt, uint _token2cnt, uint _token3cnt ) public {
+        require(investorToId[msg.sender] == 0); //each account is associated with address 
         uint _maxLoss = (_token1cnt + _token2cnt + _token3cnt) * 1000;
         investors.push(Investor(_token1cnt, _token2cnt, _token3cnt, _maxLoss, 0, 0));
         uint _id = investors.length;
