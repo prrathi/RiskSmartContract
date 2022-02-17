@@ -1,20 +1,39 @@
 pragma solidity >=0.8.11;
-import "./Investors.sol";
-import "./Participants.sol";
 
 contract Platform{
-    uint32 totalSupply;
-    uint32 investorsCapital;
+    uint totalParticipantRisk;
+    uint totalInvestorRisk;
+    uint totalPlatformRisk;
     uint startTime;
-    uint currentTime;
-    function updateTimestamp() public {
-        currentTime = block.timestamp;
+    uint capital;
+
+    function startTimeCycle() private {
+        require(startTime == 0); //for month cycle
+        startTime = block.timestamp;
     }
-    function recordClaim()
 
-    Investor[] investors; 
-    Participant[] participants;
+    function checkValidTime() internal returns (bool) { 
+        bool valid = (block.timestamp - startTime) / 60 / 60 / 24 >= 30;
+        if (valid) {
+            resetTimeCycle();
+        } 
+        return valid;
+    } 
 
+    function setParticipantRisk(uint _addRisk) internal {
+        totalParticipantRisk += _addRisk;
+    }
 
+    function setInvestorRisk(uint _totalInvestorRisk) internal {
+        totalInvestorRisk += _totalInvestorRisk;
+        if (totalPlatformRisk != 0) {
+            capital = capital + totalPlatformRisk;
+        }
+        totalPlatformRisk = totalParticipantRisk - totalInvestorRisk; 
+    }
+
+    function resetTimeCycle() private {
+        startTime = 0;
+    }
 
 }
