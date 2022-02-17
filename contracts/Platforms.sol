@@ -20,8 +20,8 @@ contract Platform{
         return valid;
     } 
 
-    function setParticipantRisk(uint _addRisk) internal {
-        totalParticipantRisk += _addRisk;
+    function setParticipantRisk(uint _totalRisk) internal {
+        totalParticipantRisk = _totalRisk;
     }
 
     function setInvestorRisk(uint _totalInvestorRisk) internal {

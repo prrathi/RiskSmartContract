@@ -21,10 +21,9 @@ contract ParticipantFactory is Platform, InvestorFactory {
         participants.push(Participant(_prerisk, _numClaims, _totalClaims, _value));
         uint _id = participants.length;
         participantToId[msg.sender] = _id;
-        // perform some calculations to determine risk
-        // setParticipantRisk(_riskMetric)
         emit NewParticipant(_id, _prerisk, _numClaims, _totalClaims, _value);
     }
+    // need indicator for when opening period is finished to do calculations
 
     function registerClaim(uint _claim) public {
         require(participantToId[msg.sender] != 0);
