@@ -4,6 +4,7 @@ import "./Investors.sol";
 
 contract ParticipantFactory is Platform, InvestorFactory {
 
+
     struct Participant {
         uint prerisk;
         uint numClaims;
