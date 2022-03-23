@@ -1,39 +1,34 @@
 pragma solidity >=0.8.11;
 
-contract Platform{
-    uint totalParticipantRisk;
-    uint totalInvestorRisk;
-    uint totalPlatformRisk;
-    uint startTime;
-    uint capital;
+contract Platform {
+    uint totalCapital;
+    uint time;
 
-    function startTimeCycle() private {
-        require(startTime == 0); //for month cycle
-        startTime = block.timestamp;
+    function _startTimeCycle() private {
+        require(time == 0); //for month cycle
+        time = block.timestamp;
     }
 
-    function checkValidTime() internal returns (bool) { 
-        bool valid = (block.timestamp - startTime) / 60 / 60 / 24 >= 30;
-        if (valid) {
-            resetTimeCycle();
+    function _resetTimeCycle() private {
+        time = 0;
+    }
+
+    function _getTime() public returns (uint) {
+        bool valid = (block.timestamp - time) / 60 / 60 / 24 >= 30;
+        if(!valid) {
+            _resetTimeCycle();
         } 
-        return valid;
-    } 
-
-    function setParticipantRisk(uint _totalRisk) internal {
-        totalParticipantRisk = _totalRisk;
+        return time;
     }
 
-    function setInvestorRisk(uint _totalInvestorRisk) internal {
-        totalInvestorRisk += _totalInvestorRisk;
-        if (totalPlatformRisk != 0) {
-            capital = capital + totalPlatformRisk;
-        }
-        totalPlatformRisk = totalParticipantRisk - totalInvestorRisk; 
-    }
+    mapping (address => address) public participantIds;
+    mapping (address => address) public investorIds; 
+    mapping (address => uint) public participantSplits;
+    mapping (address => uint) public investorSplits;
+    
 
-    function resetTimeCycle() private {
-        startTime = 0;
+    function _updateCapital() public {
+        //if a new investor joins update totalCapital
+        //goes through each investor and updates the capital
     }
-
 }
