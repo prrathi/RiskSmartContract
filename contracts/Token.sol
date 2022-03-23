@@ -100,7 +100,7 @@ function _approve(
 
     _totalSupply += amount;
     _balances[account] += amount;
-    emit Transfer(address(0), account, amount);
+    // emit Transfer(address(0), account, amount);
   }
 
   function _burn(address account, uint256 amount) internal virtual {
@@ -109,6 +109,7 @@ function _approve(
     require(accountBalance >= amount, "Burn amount exceeds balance");
     _balances[account] = accountBalance - amount;
     _totalSupply -= amount;
+    // emit Transfer(address(0), account, amount);
   }
 
 }
