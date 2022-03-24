@@ -1,72 +1,79 @@
 pragma solidity >=0.5.17;
-import "./Platforms.sol";
-import "./IERC20.sol";
+import {Platform} from "./Platforms.sol";
+// import "./IERC20.sol";
+import {Token} from "./Token.sol";
 
-contract InvestorFactory is Platform {
-
+contract InvestorFactory{
 
     struct Investor {
-        uint256 maxLoss; 
-        uint256 capital;
+        // only have one type of token for now
+        uint256 safeCapital;
         uint256 accPremiums;
-        uint256 split;
     }
 
-    mapping(address => uint256) investorPremiums;
-    mapping(address => uint256) investorSplit;
+    // mapping(address => uint256) investorPremiums;
+    // mapping(address => uint256) investorSplit;
 
+    mapping (address => bytes32) addressToId;
+    mapping (bytes32 => Investor) idToInvestor;
+    mapping (bytes32 => address) investorToAddress;
 
-    uint _totalInvestorRisk;
-    bool finished = false;
-    bool finishedAlready = false;
+    bytes32 [] private investorIds;
 
-    IERC20 usdt = IERC20(address(0xdAC17F958D2ee523a2206206994597C13D831ec7)); // mainnet USDT contract address
+    event newInvestor(bytes32 _hashUsername, uint256 _capital);
 
-    mapping (address => uint) investorToId;
-
-    event newInvestor(uint _id, uint _token1cnt, uint _token2cnt, uint _token3cnt);
-
-    Investor[] public investors;
-
-    function createInvestor(uint _token1cnt, uint _token2cnt, uint _token3cnt) public {
-        require(investorToId[msg.sender] == 0); //each account is associated with address 
-        uint _maxLoss = (_token1cnt + _token2cnt + _token3cnt); // * 1000;
-        uint tempamount = 0; //DO ACTUAL CALCULATIONS
-        // usdt.approve(address(this), tempamount); //GET ACTUAL APPROVAL MECHANISM
-        usdt.transferFrom(msg.sender, address(this), tempamount);
-        investors.push(Investor(_token1cnt, _token2cnt, _token3cnt, _maxLoss, 0, 0));
-        uint _id = investors.length;
-        investorToId[msg.sender] = _id;
+    function createInvestor(uint256 _capital, string memory username) public {
         // some indicator or capping factor would set finished to true
-        _totalInvestorRisk += _maxLoss;
-        if (finished && !finishedAlready) {
-            setInvestorRisk(_totalInvestorRisk);
-            finishedAlready = true;
-        }
-        emit newInvestor(_id, _token1cnt, _token2cnt, _token3cnt);
+        require(Platform._getInvestorOpen());
+        require(addressToId[msg.sender] == 0); //each account is associated with address 
+        bytes32 hashUsername = keccak256(abi.encode(username));
+        require(hashUsername != Platform.platform_id);
+        require(idToInvestor[hashUsername] == 0);
+
+        uint256 potentialLoss = _capital/Token.maxLossRatio_;
+
+        addressToId[msg.sender] = hashUsername;
+        idToInvestor[hashUsername] = Investor(_capital-potentialLoss, 0);
+        investorToAddress[hashUsername] = msg.sender;
+        investorIds.push(hashUsername);
+        // uint _maxLoss = (_token1cnt + _token2cnt + _token3cnt); // * 1000;
+        // uint tempamount = 0; //DO ACTUAL CALCULATIONS
+        // usdt.approve(address(this), tempamount); //GET ACTUAL APPROVAL MECHANISM
+        // usdt.transferFrom(msg.sender, address(this), tempamount);
+        // _totalInvestorRisk += _maxLoss;
+
+        Platform.usdt.transferFrom(msg.sender, address(this), potentialLoss);
+        Platform._updateValue(hashUsername, potentialLoss);
+        emit newInvestor(hashUsername, _capital);
     }
     
-    function splitClaim(uint _claim) internal {
-        //dostuff
+    function splitClaim(uint256 _claim, string memory username) internal {
+        // splitting mechanism for now
+        // fix floating point stuff later
+        uint256 _unitClaim = -1 * _claim/Platform.token.totalSupply(); // how much each person has to pay -> won't be actual calculation
+        for (uint i = 0; i < investorIds.length; i++) {
+            Platform._updateValue(investorIds[i], _unitClaim*Platform.token.balanceOf(investorToAddress[investorIds[i]]));
+        }
+        Platform._updateValue(username, _claim);
     }
 
-    function withdraw(uint32 amount) public{
+    // function withdraw(uint32 amount) public{
         
-    }
+    // }
 
-    function change(uint32 amount, string mode) public{
-        //NA
-    }
-/NA/
+    // function change(uint32 amount) public{
+     
+    // }
+
     // function change(uint32 diff) public returns (bool);
     // function withdraw() public returns (bool);
-    function getProfit() public view returns (uint) {
-        require(investorToId[msg.sender] != 0);
-        Investor memory iTemp = investors[investorToId[msg.sender]-1];
-        return iTemp.value - iTemp.currLoss;
+    function getValue() public view returns (uint256) {
+        require(addressToId[msg.sender] != 0);
+        string memory username = addressToId[msg.sender];
+        return idToInvestor[username].capital + Platform._balances[username];
     }
 
     function getPremium() public returns (uint) {
         
     }
-}        require()investorToID[]msg.sender != 0;
+}

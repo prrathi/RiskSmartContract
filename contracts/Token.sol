@@ -1,34 +1,40 @@
 pragma solidity >=0.8.11;
-import {IToken} from "../interfaces/IToken.sol";
+import {IERC20} from "../interfaces/IERC20.sol";
 import {WadMath} from "./WadMath.sol";
 
-contract Token is IToken{
+contract Token is IERC20{
 
     uint256 public constant MIN_SCALE = 1e8;
 
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
     string internal _name;
-    uint256 internal _totalSupply; // non-scaled totalSupply
+    uint256 internal _totalSupply; // some constant * WadMath.WAD/MIN_SCALE total value held in token divided by value per stake
+    uint256 internal _currSupply; // current value of investment
 
     uint256 internal _maxLossRatio;
+    uint256 internal _paymentFreq;
+    uint256 internal _duration;
 
-function init(string memory name_, uint256 maxLossRatio_) public {
+constructor(string memory name_, uint256 maxLossRatio_, uint paymentFreq_, uint duration_) {
+    require(msg.sender == address(this)); // only contract can initialize
     _name = name_;
     _maxLossRatio = maxLossRatio_;
+    _paymentFreq = paymentFreq_;
+    _duration = duration_;
 }
 
-function name() public view virtual override returns (string memory) {
+function name() public view virtual returns (string memory) {
     return _name;
-  }
+}
 
 function totalSupply() public view returns (uint256) {
     return _totalSupply;
 }
 
-function balanceOf(address tokenOwner) public view returns (uint){
+function balanceOf(address tokenOwner) public view returns (uint256){
     uint256 principalBalance = _balances[tokenOwner];
-    if (principalBalance == 0) return 0;
+    return principalBalance;
 }
 
 function allowance(address tokenOwner, address spender) public view returns (uint) {
@@ -112,4 +118,13 @@ function _approve(
     // emit Transfer(address(0), account, amount);
   }
 
+  function getMaxLossRatio() public view returns (uint256) {
+    return _maxLossRatio;
+  }
+  function getPaymentFreq() public view returns (uint256) {
+    return _paymentFreq;
+  }
+  function getDuration() public view returns (uint256) {
+    return _duration;
+  }
 }
