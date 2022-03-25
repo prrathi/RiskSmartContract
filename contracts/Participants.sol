@@ -1,8 +1,8 @@
-pragma solidity >=0.5.17;
-import {Platform} from "./Platforms.sol";
-import {InvestorFactory} from "./Investors.sol";
+pragma solidity >=0.8.11;
+import "./Platforms.sol";
+import "./Investors.sol";
 
-contract ParticipantFactory{
+contract ParticipantFactory is InvestorFactory {
 
     struct Participant {
         uint prerisk;

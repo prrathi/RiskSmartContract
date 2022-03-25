@@ -25,6 +25,10 @@ contract Platform {
         else {_balances[username] += amount;}
     }
 
+    function _getValue(bytes32 username) internal view returns (uint256) {
+        return _balances[username];
+    }
+
     function _getInvestorOpen() public view returns (bool) {
         return isInvestorOpen;
     }
