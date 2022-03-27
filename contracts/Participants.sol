@@ -21,8 +21,8 @@ contract ParticipantFactory is InvestorFactory {
         require(Platform._getParticipantOpen());
         require(addressToId[msg.sender] == 0);
         bytes32 hashUsername = keccak256(abi.encode(username));
-        require(hashUsername !=Platform.platform_id);
-        require(idToParticipant[hashUsername] == 0);
+        require(hashUsername !=Platform.platform_id, "Username taken");
+        require(Platform.investorExists[hashUsername] || Platform.participantExists[hashUsername], "Username taken");
         addressToId[msg.sender] = hashUsername;
         idToParticipant[hashUsername] = Participant(_prerisk, 0, 0, _value);
 
@@ -44,4 +44,7 @@ contract ParticipantFactory is InvestorFactory {
         InvestorFactory.splitClaim(_claim, hashUsername);
     }
 
+    function payPremium() internal {
+        // verify that the time is right, this will only be done at the end
+    }
 }

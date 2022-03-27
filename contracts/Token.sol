@@ -1,8 +1,9 @@
 pragma solidity >=0.8.11;
 import {IERC20} from "../interfaces/IERC20.sol";
 import {WadMath} from "./WadMath.sol";
+import {PlatformSetup} from "./PlatformSetup.sol";
 
-contract Token is IERC20{
+contract Token is IERC20, PlatformSetup{
 
     uint256 public constant MIN_SCALE = 1e8;
 
@@ -11,17 +12,11 @@ contract Token is IERC20{
     string internal _name;
     uint256 internal _totalSupply; // some constant * WadMath.WAD/MIN_SCALE total value held in token divided by value per stake
     uint256 internal _currSupply; // current value of investment
+    uint256 internal constant _amountPerStake = 100;
 
-    uint256 internal _maxLossRatio;
-    uint256 internal _paymentFreq;
-    uint256 internal _duration;
-
-constructor(string memory name_, uint256 maxLossRatio_, uint paymentFreq_, uint duration_) {
+constructor(string memory name_) {
     require(msg.sender == address(this)); // only contract can initialize
     _name = name_;
-    _maxLossRatio = maxLossRatio_;
-    _paymentFreq = paymentFreq_;
-    _duration = duration_;
 }
 
 function name() public view virtual returns (string memory) {
@@ -101,7 +96,7 @@ function _approve(
     _balances[recipient] += amount;
   }
 
-  function _mint(address account, uint256 amount) internal virtual {
+  function _mint(address account, uint256 amount) external onlyPlatform {
     require(account != address(0), "EToken: mint to the zero address");
 
     _totalSupply += amount;
@@ -109,7 +104,7 @@ function _approve(
     // emit Transfer(address(0), account, amount);
   }
 
-  function _burn(address account, uint256 amount) internal virtual {
+  function _burn(address account, uint256 amount) external onlyPlatform {
     require(account != address(0), "Burn from the zero address");
     uint256 accountBalance = _balances[account];
     require(accountBalance >= amount, "Burn amount exceeds balance");
@@ -118,13 +113,8 @@ function _approve(
     // emit Transfer(address(0), account, amount);
   }
 
-  function getMaxLossRatio() public view returns (uint256) {
-    return _maxLossRatio;
+  function _getAmountPerStake() public pure returns (uint256) {
+    return _amountPerStake;
   }
-  function getPaymentFreq() public view returns (uint256) {
-    return _paymentFreq;
-  }
-  function getDuration() public view returns (uint256) {
-    return _duration;
-  }
+
 }
