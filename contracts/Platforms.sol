@@ -14,6 +14,9 @@ contract Platform {
     //total capital
     uint256 internal totalCapital; //we need to figure out a capital that meets regulation (where do we do this?)
 
+    //claim amount
+    uint256 internal claimAmount = 1000; // temporary
+
     //platform related id's and addresses
     bytes32 internal constant platform_id = keccak256("PLATFORM");
     IERC20 internal usdt = IERC20(address(0xdAC17F958D2ee523a2206206994597C13D831ec7)); // mainnet USDT contract address
@@ -25,16 +28,21 @@ contract Platform {
     // mapping (address => uint) public investorSplits;
     bytes32 [] internal investorIds;
     mapping(bytes32 => uint256) internal investorRisk;
+    mapping(bytes32 => bool) internal investorExists;
     bytes32 [] internal participantIds;
-    mapping(bytes32 => uint256) internal participantValue;
+    mapping (bytes32 => bool) hasClaimed; //whether participant has claim
+    mapping (bytes32 => bool) participantExists;
+    mapping (bytes32 => address) addresses;
 
     //Token
     Token internal token = new Token("sampleToken");
 
-    //functions
+    //initiate accounts for investors and participants, both internal and token balance
     function _initiateValue(bytes32 username, uint256 amount, bool positive, bool investor, address sender) internal {
-        if (investor && addresses[username] == address(0)) {
+        require(addresses[username] == address(0) || addresses[username] == sender);
+        if (investor && !investorExists[username]) {
             investorIds.push(username);
+            investorExists[username] = true;
         }
         if (investor) {
             if (amount > 0) {
@@ -53,8 +61,9 @@ contract Platform {
                 }
             }
         } else {
-            participantExists[username] = amount;
+            require(!participantExists[username]);
             participantIds.push(username);
+            participantExists[username] = true;
             amount = 0;
             // preferably add or subtract from balance, but this would require having sufficient value
             // assuming so...
@@ -65,8 +74,13 @@ contract Platform {
         _updateValue(username, amount, positive);
     }
 
+    // update internal balance
     function _updateValue(username, amount, positive) internal {
         if (positive) {
+            if (participantExists[username] && amount != 0) {
+                require(!hasClaimed[username]);
+                hasClaimed[username] = true;
+            }
             _balances[username] += amount;
         }
         else{
@@ -96,23 +110,27 @@ contract Platform {
         for (uint256 i = 0; i < investorIds.length; i++) {
             uint256 value = _getValue(investorIds[i]);
             require(value >= 0);
-            usdt.transfer(addresses[investorIds[i]], value);
+            if (value > 0) {
+                usdt.transfer(addresses[investorIds[i]], value);
+            }
             _balances[investorIds[i]] = 0;
-            investorExists[investorIds[i]] = false;
-
             address investor = addresses[investorIds[i]];
-            uint256 balance = token.balanceOf(investor);
-            _burn(investor, balance);
+            uint256 tokenBalance = token.balanceOf(investor);
+            _burn(investor, tokenBalance);
             addresses[investorIds[i]] = address(0);
+            investorExists[investorIds[i]] = false;
+            investorRisk[investorIds[i]] = 0;
         }
         delete investorIds;
+
         for (uint256 i = 0; i < participantIds.length; i++) {
-            uint256 value = _getValue(participantIds[i]);
-            require(value >= 0);
-            usdt.transfer(addresses[participantIds[i]], value);
+            if (hasClaimed[participantIds[i]]) {
+                usdt.transfer(addresses[participantIds[i]], Platform.claimAmount);
+            }
             _balances[participantIds] = 0;
             addresses[participantIds[i]] = address(0);
-            participantValue[participantIds[i]] = 0;
+            participantExists[participantIds[i]] = false;
+            hasClaimed[participantIds[i]] = false;
         }
         delete participantIds;
 

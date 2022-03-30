@@ -34,15 +34,15 @@ contract InvestorFactory is Platform{
         emit newInvestor(hashUsername, capital);
     }
     
-    function splitClaim(uint256 _claim, string memory username) internal {
+    function splitClaim(string memory username) internal {
         // splitting mechanism for now
         // fix floating point stuff later
-        uint256 _unitClaim = 0 - _claim/Platform.token.totalSupply(); // how much each person has to pay -> won't be actual calculation
+        uint256 _unitClaim = 0 - Platform.claimAmount/Platform.token.totalSupply(); // how much each person has to pay -> won't be actual calculation
         for (uint i = 0; i < investorIds.length; i++) {
             Platform._updateValue(investorIds[i], _unitClaim*Platform.token.balanceOf(idToAddress[investorIds[i]]), false);
         }
         bytes32 hashUsername = keccak256(abi.encode(username));
-        Platform._updateValue(hashUsername, _claim, true);
+        Platform._updateValue(hashUsername, Platform.claimAmount, true);
     }
 
     function changeStake(uint256 stake, address partner, string memory username) internal {

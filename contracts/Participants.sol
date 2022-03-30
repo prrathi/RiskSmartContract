@@ -18,7 +18,6 @@ contract ParticipantFactory is Platform {
 
     struct Participant {
         uint coverageSize;
-        uint totalClaims; //what do we need to know about claims?
         uint premium; //participant premium to investors
         uint profit;
         uint totalInvestor;
@@ -34,7 +33,6 @@ contract ParticipantFactory is Platform {
 
     //all participants on platform
     Participants[] public participants;
-    Claim[] public claims; //claims that the participant has
     Payments[] public payments;
     bytes32[] public particpantsIds;
     address[] public participantAddresses;
@@ -67,14 +65,14 @@ contract ParticipantFactory is Platform {
     mapping (address => bool) public mapOpen;
 
     //register the claim
-    function registerClaim(uint _claim, string memory username, /* string memory claimUsername*/) public {
+    function registerClaim(string memory username /* string memory claimUsername*/) public {
         require(addresstoId[msg.sender] != 0);
-        string memory hashUsername = keccak256(username);
+        string memory hashUsername = keccak256(abi.encode(username));
         require(hashUsername == addresstoId[msg.sender]);
+        require(hasClaimed[hashUsername] == false);
+        hasClaimed[hashUsername] = true;
         Participant storage myParticipant = participantAddresses[hashUsername]; //storage means pass by reference
-        myParticipant.numClaims++;
-        myParticipant.totalClaims += _claim;
-        InvestorFactory.splitClaim(_claim, hashUsername);
+        InvestorFactory.splitClaim(hashUsername);
         // if there is a claim username we would want to push that into claims array
     }
 
