@@ -81,8 +81,8 @@ contract InvestorFactory is Platform{
             emit newInvestor(hashUsername, 0); 
         }
         Platform.token.transferFrom(partner, msg.sender, stake);
-        Platform._updateValue(addressToId[partner], stake*Platform.token._amountPerStake, false);
-        Platform._updateValue(addressToId[msg.sender], stake*Platform.token._amountPerStake, true);
+        Platform._initiateValue(addressToId[partner], stake*Platform.token._getAmountPerStake(), false, true, partner);
+        Platform._initiateValue(addressToId[msg.sender], stake*Platform.token._getAmountPerStake(), true, true, partner);
     }
 
     function getValue() public view returns (uint256) {

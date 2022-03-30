@@ -5,10 +5,9 @@ import "./Investors.sol";
 contract ParticipantFactory is InvestorFactory {
 
     struct Participant {
-        uint prerisk;
+        // uint prerisk;
         uint numClaims;
         uint totalClaims;
-        uint value;
     }
 
     mapping (address => bytes32) addressToId;
@@ -24,7 +23,8 @@ contract ParticipantFactory is InvestorFactory {
         require(hashUsername !=Platform.platform_id, "Username taken");
         require(Platform.investorExists[hashUsername] || Platform.participantExists[hashUsername], "Username taken");
         addressToId[msg.sender] = hashUsername;
-        idToParticipant[hashUsername] = Participant(_prerisk, 0, 0, _value);
+        idToParticipant[hashUsername] = Participant(0, 0);
+        Platform._initiateValue(hashUsername, _value, false, false, msg.sender);
 
         // get max loss for participant, aka sum of premiums
         // uint256 totalPremium = premium * _prerisk * Platform.token.getDuration() / Platform.token.getPaymentFreq();
@@ -44,7 +44,7 @@ contract ParticipantFactory is InvestorFactory {
         InvestorFactory.splitClaim(_claim, hashUsername);
     }
 
-    function payPremium() internal {
-        // verify that the time is right, this will only be done at the end
-    }
+    // function payPremium() internal {
+        // // verify that the time is right, this will only be done at the end
+    // }
 }
