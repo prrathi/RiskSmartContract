@@ -5,30 +5,33 @@ import {Token} from "./Token.sol";
 contract Platform {
     uint256 internal totalRisk;
     uint256 public time;
-    bool public isInvestorOpen;
-    bool public isParticipantOpen;
-    uint256 public constant duration = 30*24*24*60; // duration is month
-    // uint256 public constant interest = 10; // temporary interest for that period, means 100/1000
-    uint256 internal constant premium = 100; // temporary premium amount
-    uint256 internal constant stoploss = 100; // temporary stop loss ratio, means 100/1000
+    uint256 public constant duration= 30*24*24*60;
 
+    //premiums
+    uint256 internal totalPremium = 100; //temporary premium amount
+    uint256 internal platformPremium; //premium for having money to pay losses
+
+    //total capital
+    uint256 internal totalCapital; //we need to figure out a capital that meets regulation (where do we do this?)
+
+    //platform related id's and addresses
     bytes32 internal constant platform_id = keccak256("PLATFORM");
     IERC20 internal usdt = IERC20(address(0xdAC17F958D2ee523a2206206994597C13D831ec7)); // mainnet USDT contract address
 
-    mapping(bytes32 => uint256) private _balances;
-
+    //mappings for investors & participants
     // mapping (address => address) public participantIds;
-    // mapping (address => address) public investorIds; 
-    // mapping (address => uint) public participantSplits;
+    // mapping (address => address) public investorIds;
+    // mapping (address => uint) public participantSplits; 
     // mapping (address => uint) public investorSplits;
-    mapping (bytes32 => address) addresses;
     bytes32 [] internal investorIds;
     mapping(bytes32 => uint256) internal investorRisk;
     bytes32 [] internal participantIds;
     mapping(bytes32 => uint256) internal participantValue;
 
+    //Token
     Token internal token = new Token("sampleToken");
 
+    //functions
     function _initiateValue(bytes32 username, uint256 amount, bool positive, bool investor, address sender) internal {
         if (investor && addresses[username] == address(0)) {
             investorIds.push(username);
@@ -75,10 +78,6 @@ contract Platform {
         return _balances[username];
     }
 
-    function _getInvestorOpen() public view returns (bool) {
-        return isInvestorOpen;
-    }
-
     function _getParticipantOpen() public view returns (bool) {
         return isParticipantOpen;
     }
@@ -122,15 +121,6 @@ contract Platform {
         isParticipantOpen = true;
     }
 
-    function _payPremium() private {
-        // do the calculations
-        uint256 totalPremium = premium*participantIds.length;
-        for (uint256 i = 0; i < investorIds.length; i++) { 
-            uint256 investorPremium = totalPremium * _getValue(investorIds[i]) / totalRisk;
-            _updateValue(investorIds[i], investorPremium, true);
-        }
-    }
-
     function _getTime() public returns (uint256) {
         bool expired = (block.timestamp - time) >= duration;
         if(expired) {
@@ -151,4 +141,18 @@ contract Platform {
     function _burn(address addr, uint256 amount) public {
         token._burn(addr, amount);
     }
+
+
+
+    //think we should keep this in the investors
+    function _payPremiums() private {
+        // do the calculations
+        uint256 totalPremium = premium*participantIds.length;
+        for (uint256 i = 0; i < investorIds.length; i++) { 
+            uint256 investorPremium = totalPremium * _getValue(investorIds[i]) / totalRisk;
+            _updateValue(investorIds[i], investorPremium, true);
+        }
+    }
+
+
 }

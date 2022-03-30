@@ -1,22 +1,11 @@
 pragma solidity >=0.8.11;
 import "./Platforms.sol";
-// import "./IERC20.sol";
 import {Token} from "./Token.sol";
 
 contract InvestorFactory is Platform{
 
-    // struct Investor {
-        // // only have one type of token for now
-        // uint256 safeCapital;
-        // uint256 accPremiums;
-    // }
-
-    // mapping(address => uint256) investorPremiums;
-    // mapping(address => uint256) investorSplit;
-
-    mapping (address => bytes32) addressToId;
-    // mapping (bytes32 => Investor) idToInvestor;
-    mapping (bytes32 => address) idToAddress;
+    mapping (address => bytes32) addressToId; //address to id for platform
+    mapping (bytes32 => address) idToAddress; //platform id to address here
 
 
     event newInvestor(bytes32 _hashUsername, uint256 _capital);
