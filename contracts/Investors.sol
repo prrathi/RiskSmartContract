@@ -20,14 +20,9 @@ contract InvestorFactory is Platform{
 
         addressToId[msg.sender] = hashUsername;
         idToAddress[hashUsername] = msg.sender;
-        investorIds.push(hashUsername);
-        // uint _maxLoss = (_token1cnt + _token2cnt + _token3cnt); // * 1000;
-        // uint tempamount = 0; //DO ACTUAL CALCULATIONS
-        // usdt.approve(address(this), tempamount); //GET ACTUAL APPROVAL MECHANISM
-        // usdt.transferFrom(msg.sender, address(this), tempamount);
-        // _totalInvestorRisk += _maxLoss;
         uint256 numStake = _capital/Platform.token._getAmountPerStake();
         uint256 capital = numStake * Platform.token._getAmountPerStake();
+        // usdt.approve(address(this), _capital); //GET ACTUAL APPROVAL MECHANISM
         Platform.usdt.transferFrom(msg.sender, address(this), capital);
         Platform._initiateValue(hashUsername, capital, true, true, msg.sender);
         Platform._mint(msg.sender, numStake);
@@ -37,9 +32,33 @@ contract InvestorFactory is Platform{
     function splitClaim(string memory username) internal {
         // splitting mechanism for now
         // fix floating point stuff later
-        uint256 _unitClaim = 0 - Platform.claimAmount/Platform.token.totalSupply(); // how much each person has to pay -> won't be actual calculation
-        for (uint i = 0; i < investorIds.length; i++) {
-            Platform._updateValue(investorIds[i], _unitClaim*Platform.token.balanceOf(idToAddress[investorIds[i]]), false);
+        uint256 outstandingClaim = Platform.claimAmount;
+        uint256 unitClaim = Platform.claimAmount/Platform.token.totalSupply(); // how much each person has to pay -> won't be actual calculation
+        uint256 remainingCapital = 0;
+        for (uint i = 0; i < Platform.investorIds.length; i++) {
+            bytes32 investorId = Platform.investorIds[i];
+            if (Platform.investorRisk[investorId] >= unitClaim*Platform.token.balanceOf(idToAddress[investorIds[i]])) {
+                Platform._updateValue(investorIds[i], unitClaim*Platform.token.balanceOf(idToAddress[investorIds[i]]), false);
+                Platform.investorRisk[investorId] -= unitClaim*Platform.token.balanceOf(idToAddress[investorIds[i]]);
+                outstandingClaim -= unitClaim*Platform.token.balanceOf(idToAddress[investorIds[i]]);
+                remainingCapital += Platform.investorRisk[investorId];
+            } else{
+                if (Platform.investorRisk[investorId] > 0) {
+                    Platform._updateValue(investorIds[i], Platform.investorRisk[investorId], false);
+                    Platform.investorRisk[investorId] = 0;
+                    outstandingClaim -= Platform.investorRisk[investorId];
+                }
+            }
+        }
+        if (remainingCapital <= outstandingClaim) {
+            for (uint i = 0; i < Platform.investorIds.length; i++) {
+                Platform.investorRisk[Platform.investorIds[i]] = 0;
+            }
+            Platform._changeTreasury(outstandingClaim - remainingCapital, false);
+        } else{
+            for (uint i = 0; i < Platform.investorIds.length; i++) {
+                Platform.investorRisk[Platform.investorIds[i]] = Platform.investorRisk[Platform.investorIds[i]] * (remainingCapital - outstandingClaim) / remainingCapital;
+            }
         }
         bytes32 hashUsername = keccak256(abi.encode(username));
         Platform._updateValue(hashUsername, Platform.claimAmount, true);

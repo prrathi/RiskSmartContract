@@ -25,11 +25,11 @@ contract ParticipantFactory is Platform {
     }
 
     struct Payments {
-        Investor i;
         address investorAddress;
         uint256 paymentToInvestor;
         //Claim if we make contract for claims
     }
+
 
     //all participants on platform
     Participants[] public participants;
@@ -52,6 +52,8 @@ contract ParticipantFactory is Platform {
         require(hashUsername !=Platform.platform_id, "Username taken");
         require(Platform.investorExists[hashUsername] || Platform.participantExists[hashUsername], "Username taken");
         addresstoId[msg.sender] = hashUsername;
+        // usdt.approve(address(this), Platform.premium); //GET ACTUAL APPROVAL MECHANISM
+        Platform.usdt.transferFrom(msg.sender, address(this), Platform.participantPremium);
         participantAddresses[hashUsername] = Participant(0, 0);
         // Platform._initiateValue(hashUsername, _value, false, false, msg.sender); don't know what this is
         emit newParticipant(hashUsername, _coverageSize, _totalClaims, _premium);
@@ -71,17 +73,22 @@ contract ParticipantFactory is Platform {
         require(hashUsername == addresstoId[msg.sender]);
         require(hasClaimed[hashUsername] == false);
         hasClaimed[hashUsername] = true;
-        Participant storage myParticipant = participantAddresses[hashUsername]; //storage means pass by reference
+        // Participant storage myParticipant = participantAddresses[hashUsername]; //storage means pass by reference
         InvestorFactory.splitClaim(hashUsername);
         // if there is a claim username we would want to push that into claims array
     }
 
-    //puts investor into array
-    function _updateInvestors(string memory _username) public {
-        //make an array above and push the investors in 
-        //hashes and pushes username
-        //haven't decided how to store yet
-    }
+    // //puts investor into array
+    // function _updateInvestors(string memory _username) public {
+        // //make an array above and push the investors in 
+        // //hashes and pushes username
+        // //haven't decided how to store yet
+    // }
+
+
+    // do we need all of this, see _payPremium in the platforms.sol
+    // only done at end so sophistication isn't needed
+
 
     //payment related attributes and functions
     mapping (address => bytes32) public addressToPaymentId;

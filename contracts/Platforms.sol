@@ -7,18 +7,26 @@ contract Platform {
     uint256 public time;
     uint256 public constant duration= 30*24*24*60;
 
+    // platform treasury
+    uint256 private treasury = 100000; // to cover excess losses and receive excess gains
+
     //premiums
-    uint256 internal totalPremium = 100; //temporary premium amount
-    uint256 internal platformPremium; //premium for having money to pay losses
+    uint256 internal participantPremium = 100; //temporary premium amount
+    uint256 internal investorInterest = 80; //interest rate for investor, 80 means 0.08 yield
 
     //total capital
     uint256 internal totalCapital; //we need to figure out a capital that meets regulation (where do we do this?)
+    
+    //registration control
+    uint256 internal max; //we need some maximum limit where investor/participant are closed off
+    bool isInvestorOpen;
+    bool isParticipantOpen;
 
     //claim amount
     uint256 internal claimAmount = 1000; // temporary
 
     //platform related id's and addresses
-    bytes32 internal constant platform_id = keccak256("PLATFORM");
+    // bytes32 internal constant platform_id = keccak256("PLATFORM");
     IERC20 internal usdt = IERC20(address(0xdAC17F958D2ee523a2206206994597C13D831ec7)); // mainnet USDT contract address
 
     //mappings for investors & participants
@@ -27,15 +35,16 @@ contract Platform {
     // mapping (address => uint) public participantSplits; 
     // mapping (address => uint) public investorSplits;
     bytes32 [] internal investorIds;
-    mapping(bytes32 => uint256) internal investorRisk;
-    mapping(bytes32 => bool) internal investorExists;
+    mapping(bytes32 => uint256) internal investorRisk; //capital that can be lost (max loss)
+    mapping(bytes32 => bool) internal investorExists; // prevent repeats
     bytes32 [] internal participantIds;
     mapping (bytes32 => bool) hasClaimed; //whether participant has claim
-    mapping (bytes32 => bool) participantExists;
-    mapping (bytes32 => address) addresses;
+    mapping (bytes32 => bool) participantExists; //prevent repeats
+    mapping (bytes32 => address) addresses; //for sending usdt at end
 
     //Token
     Token internal token = new Token("sampleToken");
+    uint256 internal stoploss = 50; // stoploss ratio, 50 means .05
 
     //initiate accounts for investors and participants, both internal and token balance
     function _initiateValue(bytes32 username, uint256 amount, bool positive, bool investor, address sender) internal {
@@ -48,6 +57,7 @@ contract Platform {
             if (amount > 0) {
                 uint256 risk = stoploss * amount / 1000;
                 uint256 tokens = amount / token._amountPerStake;
+                amount -= risk;
                 require(positive || token.balanceOf(sender) - amount >= 0, "can't have negative token balance");
                 if (positive) {
                     totalRisk += risk;
@@ -75,7 +85,7 @@ contract Platform {
     }
 
     // update internal balance
-    function _updateValue(username, amount, positive) internal {
+    function _updateValue(bytes32 username, uint256 amount, bool positive) internal {
         if (positive) {
             if (participantExists[username] && amount != 0) {
                 require(!hasClaimed[username]);
@@ -160,17 +170,28 @@ contract Platform {
         token._burn(addr, amount);
     }
 
-
-
-    //think we should keep this in the investors
-    function _payPremiums() private {
-        // do the calculations
-        uint256 totalPremium = premium*participantIds.length;
-        for (uint256 i = 0; i < investorIds.length; i++) { 
-            uint256 investorPremium = totalPremium * _getValue(investorIds[i]) / totalRisk;
-            _updateValue(investorIds[i], investorPremium, true);
+    function _changeTreasury(uint256 amount, bool positive) internal {
+        if (!positive) {
+            require(treasury - amount >= 0, "Platform out of money");
+            treasury -= amount;
+        } else{
+            treasury += amount;
         }
     }
 
+    //think we should keep this in the investors
+    function _payPremium() private {
+        // do the calculations
+        uint256 excess = participantIds.length * participantPremium - investorIds.length * investorInterest;
+        for (uint256 i = 0; i < investorIds.length; i++) { 
+            // if the premium amount is constant regardless of losses
+            uint256 investorPremium = investorInterest * token.balanceOf(addresses[investorIds[i]]);
+            _updateValue(investorIds[i], investorPremium, true);
+        }
+        require(excess >= 0);
+        if (excess > 0) {
+            _changeTreasury(excess, true);
+        }
+    }
 
 }
