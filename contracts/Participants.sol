@@ -90,50 +90,50 @@ contract ParticipantFactory is Platform {
     // only done at end so sophistication isn't needed
 
 
-    //payment related attributes and functions
-    mapping (address => bytes32) public addressToPaymentId;
-    mapping (bytes32 => address) public paymentIdToAddress;
-    event newPayment(address _participantId, address _paymentId);  
+    //// payment related attributes and functions
+    // mapping (address => bytes32) public addressToPaymentId;
+    // mapping (bytes32 => address) public paymentIdToAddress;
+    // event newPayment(address _participantId, address _paymentId);  
 
-    //make a payment
-    function createPayment(address _participantId, address _paymentId) public {
-        payments.push(Payment(_participantId, _paymentId));
+    // //make a payment
+    // function createPayment(address _participantId, address _paymentId) public {
+        // payments.push(Payment(_participantId, _paymentId));
 
-        /*
-        need to figure out how to hash address to bytes32 
-        (make sure whether or not we want to do this or not) 
-        */
+        // /*
+        // need to figure out how to hash address to bytes32 
+        // (make sure whether or not we want to do this or not) 
+        // */
 
-        emit newPayment(address _participantId, address _paymentId);
-    }
+        // emit newPayment(address _participantId, address _paymentId);
+    // }
 
-    //makes payment
-    mapping (address => uint) public investorPayments;
+    // //makes payment
+    // mapping (address => uint) public investorPayments;
 
-    function calculatePayment() public returns(uint){
-        for(int i = 0; i < payments.length; i++) {
-            //run the math for now, currently we have the payments the same
-            //run payment updater TBD how to do, price amount varies
-        }
-    }
+    // function calculatePayment() public returns(uint){
+        // for(int i = 0; i < payments.length; i++) {
+            // //run the math for now, currently we have the payments the same
+            // //run payment updater TBD how to do, price amount varies
+        // }
+    // }
 
 
     
-    contract PaymentMade {
-        mapping (address => uint) public payments;
+    // contract PaymentMade {
+        // mapping (address => uint) public payments;
 
-        function updatePayment(uint newBalance) public {
-            balances[msg.sender] = newBalance;
-        }
-    }
+        // function updatePayment(uint newBalance) public {
+            // balances[msg.sender] = newBalance;
+        // }
+    // }
 
-    contract PaymentUpdater {
-        function updatePayment(uint _amount) public returns (uint) {
-            PaymentMade pay = new PaymentMade();
-            PaymentMade.updatePayment(_amount);
-            return PaymentMade.payments(address(this));
-        }
-    }
+    // contract PaymentUpdater {
+        // function updatePayment(uint _amount) public returns (uint) {
+            // PaymentMade pay = new PaymentMade();
+            // PaymentMade.updatePayment(_amount);
+            // return PaymentMade.payments(address(this));
+        // }
+    // }
 
 
 }

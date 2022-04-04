@@ -46,6 +46,9 @@ contract Platform {
     Token internal token = new Token("sampleToken");
     uint256 internal stoploss = 50; // stoploss ratio, 50 means .05
 
+    // how to keep track of tokens, have mapping from string name to the token itself?
+    // especially needed with 2+ tokens and for use by trading.sol
+
     //initiate accounts for investors and participants, both internal and token balance
     function _initiateValue(bytes32 username, uint256 amount, bool positive, bool investor, address sender) internal {
         require(addresses[username] == address(0) || addresses[username] == sender);
@@ -58,7 +61,7 @@ contract Platform {
                 uint256 risk = stoploss * amount / 1000;
                 uint256 tokens = amount / token._amountPerStake;
                 amount -= risk;
-                require(positive || token.balanceOf(sender) - amount >= 0, "can't have negative token balance");
+                require(positive || token.balanceOf(sender) - tokens >= 0, "can't have negative token balance");
                 if (positive) {
                     totalRisk += risk;
                     investorRisk[username] += risk;
