@@ -1,17 +1,11 @@
 pragma solidity >= 0.8.11;
 
 import "../interfaces/IERC20.sol";
+import {InvestorFactory} from "./Investors.sol";
 
 // ADAPTED FROM https://github.com/HQ20/contracts/blob/master/contracts/classifieds/Classifieds.sol
-/**
- * @title Classifieds
- * @notice Implements the classifieds board market. The market will be governed
- * by an ERC20 token as currency, and an ERC721 token that represents the
- * ownership of the items being traded. Only ads for selling items are
- * implemented. The item tokenization is responsibility of the ERC721 contract
- * which should encode any item details.
- */
-contract Classifieds {
+
+contract Market is InvestorFactory {
     event TradeStatusChange(uint256 ad, bytes32 status);
 
     IERC20 currencyToken = IERC20(address(0xdAC17F958D2ee523a2206206994597C13D831ec7));
@@ -19,7 +13,7 @@ contract Classifieds {
 
     struct Trade {
         address poster;
-        uint256 item;
+        uint256 amount;
         uint256 price;
         bytes32 status; // Open, Executed, Cancelled
     }
@@ -34,58 +28,81 @@ contract Classifieds {
         tradeCounter = 0;
     }
 
+    function resetTrades() private {
+        for (uint256 i = 0; i < tradeCounter; i++) {
+            Trade storage trade = trades[i];
+            trade.poster = address(0);
+            trade.amount = 0;
+            trade.price = 0;
+            trade.status = "";
+        }
+        tradeCounter = 0;
+    }
+
     /**
      * @dev Returns the details for a trade.
      * @param _trade The id for the trade.
      */
     function getTrade(uint256 _trade)
         public
-        virtual
         view
         returns(address, uint256, uint256, bytes32)
     {
+        require(_trade < tradeCounter && _trade >= 0);
         Trade memory trade = trades[_trade];
-        return (trade.poster, trade.item, trade.price, trade.status);
+        return (trade.poster, trade.amount, trade.price, trade.status);
     }
 
     /**
      * @dev Opens a new trade. Puts _item in escrow.
-     * @param _item The id for the item to trade.
-     * @param _price The amount of currency for which to trade the item.
+     * @param _amount Maximum of the number of tokens being sold
+     * @param _price The price for each token.
      */
-    function openTrade(uint256 _item, uint256 _price)
+    function openTrade(uint256 _amount, uint256 _price)
         public
-        virtual
     {
         // don't transfer right away, as that interferes with the loan computations
         // simply need to ensure that things don't get overwritten/dangered when writing
-        itemToken.transferFrom(msg.sender, address(this), _item);
-        trades[tradeCounter] = Trade({
-            poster: msg.sender,
-            item: _item,
-            price: _price,
-            status: "Open"
-        });
-        tradeCounter += 1;
-        emit TradeStatusChange(tradeCounter - 1, "Open");
+        if (Platform.time == 0) {
+            resetTrades();
+        } else{
+            require(itemToken.balanceOf(msg.sender) >= _amount);
+            trades[tradeCounter] = Trade({
+                poster: msg.sender,
+                amount: _item,
+                price: _price,
+                status: "Open"
+            });
+            tradeCounter += 1;
+            emit TradeStatusChange(tradeCounter - 1, "Open");
+        }
     }
 
     /**
      * @dev Executes a trade. Must have approved this contract to transfer the
      * amount of currency specified to the poster. Transfers ownership of the
      * item to the filler.
+     * @param _amount The amount of tokens to buy at that price
      * @param _trade The id of an existing trade
      */
-    function executeTrade(uint256 _trade)
-        public
-        virtual
+    function executeTrade(uint256 _amount, uint256 _trade, string memory username) public
     {
-        Trade memory trade = trades[_trade];
+        // need to prompt the buyer to give the spender tokens
+        Platform._changeReset(false);
+        require(_trade < tradeCounter && _trade >= 0); 
+        require(_amount > 0);
+        Trade storage trade = trades[_trade];
+        if (_amount > trade.amount) {
+            _amount = trade.amount;
+        }
         require(trade.status == "Open", "Trade is not Open.");
-        currencyToken.transferFrom(msg.sender, trade.poster, trade.price);
-        itemToken.transferFrom(address(this), msg.sender, trade.item);
-        trades[_trade].status = "Executed";
+
+        // assuming allowance has been granted
+        currencyToken.transferFrom(msg.sender, trade.poster, _amount * trade.price);
+        changeStake(msg.sender, stake, trade.poster, username);
+        trade.status = "Executed";
         emit TradeStatusChange(_trade, "Executed");
+        Platform._changeReset(true);
     }
 
     /**
@@ -94,16 +111,15 @@ contract Classifieds {
      */
     function cancelTrade(uint256 _trade)
         public
-        virtual
     {
-        Trade memory trade = trades[_trade];
+        Trade storage trade = trades[_trade];
         require(
             msg.sender == trade.poster,
             "Trade can be cancelled only by poster."
         );
         require(trade.status == "Open", "Trade is not Open.");
-        itemToken.transferFrom(address(this), trade.poster, trade.item);
-        trades[_trade].status = "Cancelled";
+        // itemToken.transferFrom(address(this), trade.poster, trade.item);
+        trade.status = "Cancelled";
         emit TradeStatusChange(_trade, "Cancelled");
     }
 }

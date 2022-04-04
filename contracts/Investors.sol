@@ -8,11 +8,11 @@ contract InvestorFactory is Platform{
     mapping (bytes32 => address) idToAddress; //platform id to address here
 
 
-    event newInvestor(bytes32 _hashUsername, uint256 _capital);
+    event changeInvestor(bytes32 _hashUsername, uint256 tokens); // add type of token in future
 
     function createInvestor(uint256 _capital, string memory username) public {
         // some indicator or capping factor would set finished to true
-        require(Platform._getInvestorOpen());
+        require(Platform._getInvestorOpen(), "currently closed");
         require(addressToId[msg.sender] == 0); //each account is associated with address 
         bytes32 hashUsername = keccak256(abi.encode(username));
         require(hashUsername != Platform.platform_id, "Username taken");
@@ -26,7 +26,7 @@ contract InvestorFactory is Platform{
         Platform.usdt.transferFrom(msg.sender, address(this), capital);
         Platform._initiateValue(hashUsername, capital, true, true, msg.sender);
         Platform._mint(msg.sender, numStake);
-        emit newInvestor(hashUsername, capital);
+        emit newInvestor(hashUsername, numStake);
     }
     
     function splitClaim(string memory username) internal {
@@ -64,33 +64,40 @@ contract InvestorFactory is Platform{
         Platform._updateValue(hashUsername, Platform.claimAmount, true);
     }
 
-    function changeStake(uint256 stake, address partner, string memory username) internal {
+    function changeStake(address receiver, uint256 stake, address partner, string memory username) internal {
         // under current implementation if there was someone new, they would have to be the one to call this
         require(stake != 0);
         require(addressToId[partner] != 0);
-        uint256 senderBalance = Platform.token.balanceOf(msg.sender);
+        uint256 senderBalance = Platform.token.balanceOf(receiver);
         uint256 partnerBalance = Platform.token.balanceOf(partner);
         require(senderBalance + stake >= 0);
         require(partnerBalance - stake >= 0);
-        require(Platform.token.allowance(partner, msg.sender) >= stake);
-        // not sure how the actual transfer works
-        // do we facilitate the creation of allowance and then transfer?
-        // after that's done...
-        if (addressToId[msg.sender] == 0) {
+        
+        if (addressToId[receiver] == 0) {
             bytes32 hashUsername = keccak256(abi.encode(username));
             require(hashUsername != Platform.platform_id, "Username taken");
             require(Platform.investorExists[hashUsername] || Platform.participantExists[hashUsername], "Username taken");
 
-            addressToId[msg.sender] = hashUsername;
+            addressToId[reciever] = hashUsername;
             idToAddress[hashUsername] = msg.sender;
             investorIds.push(hashUsername);
 
             Platform._initiateValue(hashUsername, 0, true, true, msg.sender);
-            emit newInvestor(hashUsername, 0); 
+        } else {
+            require(keccak256(abi.encode(username)) == addressToId[msg.sender]);
         }
-        Platform.token.transferFrom(partner, msg.sender, stake);
+
+        // require(Platform.token.allowance(partner, receiver) >= stake);
+        // not sure how the actual transfer works
+        // do we facilitate the creation of allowance and then transfer?
+
+        // alternate method: burn one person's and mint another person's
+        Platform._burn(partner, stake);
+        Platform._mint(receiver, stake);
         Platform._initiateValue(addressToId[partner], stake*Platform.token._getAmountPerStake(), false, true, partner);
-        Platform._initiateValue(addressToId[msg.sender], stake*Platform.token._getAmountPerStake(), true, true, partner);
+        Platform._initiateValue(addressToId[receiver], stake*Platform.token._getAmountPerStake(), true, true, partner);
+        emit changeInvestor(hashUsername, stake);
+        emit changeInvestor(addressToId[partner], 0 - stake);
     }
 
     function getValue() public view returns (uint256) {

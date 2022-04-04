@@ -6,6 +6,7 @@ contract Platform {
     uint256 internal totalRisk;
     uint256 public time;
     uint256 public constant duration= 30*24*24*60;
+    bool internal canReset = true;
 
     // platform treasury
     uint256 private treasury = 100000; // to cover excess losses and receive excess gains
@@ -105,8 +106,17 @@ contract Platform {
         return _balances[username];
     }
 
+    function _getInvestorOpen() public view returns (bool) {
+        return isInvestorOpen;
+    }
+
     function _getParticipantOpen() public view returns (bool) {
         return isParticipantOpen;
+    }
+
+    // called by the trading platform
+    function _changeReset(bool val) internal {
+        canReset = val;
     }
 
     function _startTimeCycle() private {
@@ -147,17 +157,17 @@ contract Platform {
         }
         delete participantIds;
 
-        time = 0;
         isInvestorOpen = true;
         isParticipantOpen = true;
     }
 
     function _getTime() public returns (uint256) {
         bool expired = (block.timestamp - time) >= duration;
-        if(expired) {
+        if(expired && canReset) {
+            time = 0;
             _resetTimeCycle();
         } 
-        return time;
+        return block.timestamp - time;
     }
 
     function _updateCapital() public {
@@ -169,7 +179,7 @@ contract Platform {
         token._mint(addr, amount);
     }
 
-    function _burn(address addr, uint256 amount) public {
+    function _burn(address addr, uint256 amount) internal {
         token._burn(addr, amount);
     }
 

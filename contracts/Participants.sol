@@ -44,14 +44,14 @@ contract ParticipantFactory is Platform {
     event newParticipant(bytes32 _hashUsername, uint coverageSize, uint totalClaims, uint premium);
 
     function createParticipant(uint _coverageSize, uint _totalClaims, uint _premium, string memory username) public {
-        participants.push(Participant(_coverageSize, _totalClaims, _premium, username));
-
+        require(Platform._getParticipantOpen(), "currently closed");
         //hashing is done here (need to check if this works)
         require(addresstoId[msg.sender] == 0);
         bytes32 hashUsername = keccak256(abi.encode(username));
         require(hashUsername !=Platform.platform_id, "Username taken");
         require(Platform.investorExists[hashUsername] || Platform.participantExists[hashUsername], "Username taken");
         addresstoId[msg.sender] = hashUsername;
+        participants.push(Participant(_coverageSize, _totalClaims, _premium, username));
         // usdt.approve(address(this), Platform.premium); //GET ACTUAL APPROVAL MECHANISM
         Platform.usdt.transferFrom(msg.sender, address(this), Platform.participantPremium);
         participantAddresses[hashUsername] = Participant(0, 0);
