@@ -1,8 +1,9 @@
-pragma solidity >=0.8.11;
-import "./Platforms.sol";
-import "./Investors.sol";
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.0;
+import "./Platform.sol";
+import "./InvestorFactory.sol";
 
-contract ParticipantFactory is Platform {
+contract ParticipantFactory is InvestorFactory {
 
     /*
         1.) How do claims work? How does the information come in?
@@ -20,8 +21,7 @@ contract ParticipantFactory is Platform {
         uint coverageSize;
         uint premium; //participant premium to investors
         uint profit;
-        uint totalInvestor;
-        string username; //do we store this
+        // uint totalInvestor;
     }
 
     struct Payments {
@@ -32,29 +32,31 @@ contract ParticipantFactory is Platform {
 
 
     //all participants on platform
-    Participants[] public participants;
+    // Participant[] public participants;
     Payments[] public payments;
-    bytes32[] public particpantsIds;
-    address[] public participantAddresses;
+    // bytes32[] public particpantsIds;
+    mapping (bytes32 => Participant) idToParticipant;
+    // address[] public participantAddresses;
     
     //address
     mapping (address => bytes32) addresstoId; //for platform
-    mapping (bytes32 => address) idToAddress; //from platform to Participant
+    // mapping (bytes32 => address) idToAddress; //from platform to Participant
 
-    event newParticipant(bytes32 _hashUsername, uint coverageSize, uint totalClaims, uint premium);
+    event newParticipant(bytes32 hashUsername, uint coverageSize, uint totalClaims, uint premium);
 
-    function createParticipant(uint _coverageSize, uint _totalClaims, uint _premium, string memory username) public {
+    function createParticipant(uint _coverageSize, uint _totalClaims, uint _premium, bytes32 hashUsername) public {
         require(Platform._getParticipantOpen(), "currently closed");
         //hashing is done here (need to check if this works)
         require(addresstoId[msg.sender] == 0);
-        bytes32 hashUsername = keccak256(abi.encode(username));
-        require(hashUsername !=Platform.platform_id, "Username taken");
-        require(Platform.investorExists[hashUsername] || Platform.participantExists[hashUsername], "Username taken");
+        // bytes32 hashUsername = keccak256(abi.encode(username));
+        // require(hashUsername !=Platform.platform_id, "Username taken");
+        require(!Platform.investorExists[hashUsername] && !Platform.participantExists[hashUsername], "Username taken");
         addresstoId[msg.sender] = hashUsername;
-        participants.push(Participant(_coverageSize, _totalClaims, _premium, username));
+        idToAddress[hashUsername] = msg.sender;
+        idToParticipant[hashUsername] = Participant(_coverageSize, _totalClaims, _premium);
         // usdt.approve(address(this), Platform.premium); //GET ACTUAL APPROVAL MECHANISM
         Platform.usdt.transferFrom(msg.sender, address(this), Platform.participantPremium);
-        participantAddresses[hashUsername] = Participant(0, 0);
+        // participantAddresses[hashUsername] = Participant(0, 0);
         // Platform._initiateValue(hashUsername, _value, false, false, msg.sender); don't know what this is
         emit newParticipant(hashUsername, _coverageSize, _totalClaims, _premium);
     }
@@ -67,9 +69,9 @@ contract ParticipantFactory is Platform {
     mapping (address => bool) public mapOpen;
 
     //register the claim
-    function registerClaim(string memory username /* string memory claimUsername*/) public {
+    function registerClaim(bytes32 hashUsername/* string memory claimUsername*/) public {
         require(addresstoId[msg.sender] != 0);
-        string memory hashUsername = keccak256(abi.encode(username));
+        // string memory hashUsername = keccak256(abi.encode(username));
         require(hashUsername == addresstoId[msg.sender]);
         require(hasClaimed[hashUsername] == false);
         hasClaimed[hashUsername] = true;

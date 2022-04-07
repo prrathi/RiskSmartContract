@@ -1,5 +1,6 @@
-pragma solidity >=0.8.11;
-import {IERC20} from "../interfaces/IERC20.sol";
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.0;
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Token} from "./Token.sol";
 
 contract Platform {
@@ -7,6 +8,8 @@ contract Platform {
     uint256 public time;
     uint256 public constant duration= 30*24*24*60;
     bool internal canReset = true;
+    mapping(bytes32 => uint256) private _balances;
+
 
     // platform treasury
     uint256 private treasury = 100000; // to cover excess losses and receive excess gains
@@ -20,8 +23,8 @@ contract Platform {
     
     //registration control
     uint256 internal max; //we need some maximum limit where investor/participant are closed off
-    bool isInvestorOpen;
-    bool isParticipantOpen;
+    bool isInvestorOpen = true;
+    bool isParticipantOpen = true;
 
     //claim amount
     uint256 internal claimAmount = 1000; // temporary
@@ -39,9 +42,9 @@ contract Platform {
     mapping(bytes32 => uint256) internal investorRisk; //capital that can be lost (max loss)
     mapping(bytes32 => bool) internal investorExists; // prevent repeats
     bytes32 [] internal participantIds;
-    mapping (bytes32 => bool) hasClaimed; //whether participant has claim
-    mapping (bytes32 => bool) participantExists; //prevent repeats
-    mapping (bytes32 => address) addresses; //for sending usdt at end
+    mapping (bytes32 => bool) internal hasClaimed; //whether participant has claim
+    mapping (bytes32 => bool) internal participantExists; //prevent repeats
+    mapping (bytes32 => address) internal addresses; //for sending usdt at end
 
     //Token
     Token internal token = new Token("sampleToken");
@@ -60,7 +63,7 @@ contract Platform {
         if (investor) {
             if (amount > 0) {
                 uint256 risk = stoploss * amount / 1000;
-                uint256 tokens = amount / token._amountPerStake;
+                uint256 tokens = amount / token._getAmountPerStake();
                 amount -= risk;
                 require(positive || token.balanceOf(sender) - tokens >= 0, "can't have negative token balance");
                 if (positive) {
@@ -150,7 +153,7 @@ contract Platform {
             if (hasClaimed[participantIds[i]]) {
                 usdt.transfer(addresses[participantIds[i]], Platform.claimAmount);
             }
-            _balances[participantIds] = 0;
+            _balances[participantIds[i]] = 0;
             addresses[participantIds[i]] = address(0);
             participantExists[participantIds[i]] = false;
             hasClaimed[participantIds[i]] = false;

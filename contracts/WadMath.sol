@@ -1,4 +1,5 @@
-pragma solidity >=0.8.11;
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.0;
 
 library WadMath {
   uint256 internal constant WAD = 1e18;
@@ -30,7 +31,7 @@ library WadMath {
       return 0;
     }
 
-    require(a <= (type(uint256).max - HALF_WAD) / b, "wadMul: Math Multiplication Overflow");
+    // require(a <= (type(uint256).max - HALF_WAD) / b, "wadMul: Math Multiplication Overflow");
 
     return (a * b + HALF_WAD) / WAD;
   }
@@ -45,7 +46,7 @@ library WadMath {
     require(b != 0, "wadDiv: Division by zero");
     uint256 halfB = b / 2;
 
-    require(a <= (type(uint256).max - halfB) / WAD, "wadDiv: Math Multiplication Overflow");
+    // require(a <= (type(uint256).max - halfB) / WAD, "wadDiv: Math Multiplication Overflow");
 
     return (a * WAD + halfB) / b;
   }

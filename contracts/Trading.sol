@@ -1,7 +1,9 @@
-pragma solidity >= 0.8.11;
+// SPDX-License-Identifier: MIT
+pragma solidity >= 0.8.0;
 
-import "../interfaces/IERC20.sol";
-import {InvestorFactory} from "./Investors.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {InvestorFactory} from "./InvestorFactory.sol";
+import {Platform} from "./Platform.sol";
 
 // ADAPTED FROM https://github.com/HQ20/contracts/blob/master/contracts/classifieds/Classifieds.sol
 
@@ -54,7 +56,7 @@ contract Market is InvestorFactory {
     }
 
     /**
-     * @dev Opens a new trade. Puts _item in escrow.
+     * @dev Opens a new trade. 
      * @param _amount Maximum of the number of tokens being sold
      * @param _price The price for each token.
      */
@@ -69,7 +71,7 @@ contract Market is InvestorFactory {
             require(itemToken.balanceOf(msg.sender) >= _amount);
             trades[tradeCounter] = Trade({
                 poster: msg.sender,
-                amount: _item,
+                amount: _amount,
                 price: _price,
                 status: "Open"
             });
@@ -85,7 +87,7 @@ contract Market is InvestorFactory {
      * @param _amount The amount of tokens to buy at that price
      * @param _trade The id of an existing trade
      */
-    function executeTrade(uint256 _amount, uint256 _trade, string memory username) public
+    function executeTrade(uint256 _amount, uint256 _trade, bytes32 hashUsername) public
     {
         // need to prompt the buyer to give the spender tokens
         Platform._changeReset(false);
@@ -99,7 +101,7 @@ contract Market is InvestorFactory {
 
         // assuming allowance has been granted
         currencyToken.transferFrom(msg.sender, trade.poster, _amount * trade.price);
-        changeStake(msg.sender, stake, trade.poster, username);
+        InvestorFactory.changeStake(msg.sender, _amount, trade.poster, hashUsername);
         trade.status = "Executed";
         emit TradeStatusChange(_trade, "Executed");
         Platform._changeReset(true);

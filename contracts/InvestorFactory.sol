@@ -1,5 +1,6 @@
-pragma solidity >=0.8.11;
-import "./Platforms.sol";
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.0;
+import "./Platform.sol";
 import {Token} from "./Token.sol";
 
 contract InvestorFactory is Platform{
@@ -10,13 +11,13 @@ contract InvestorFactory is Platform{
 
     event changeInvestor(bytes32 _hashUsername, uint256 tokens); // add type of token in future
 
-    function createInvestor(uint256 _capital, string memory username) public {
+    function createInvestor(uint256 _capital, bytes32 hashUsername) public {
         // some indicator or capping factor would set finished to true
         require(Platform._getInvestorOpen(), "currently closed");
-        require(addressToId[msg.sender] == 0); //each account is associated with address 
-        bytes32 hashUsername = keccak256(abi.encode(username));
-        require(hashUsername != Platform.platform_id, "Username taken");
-        require(Platform.investorExists[hashUsername] || Platform.participantExists[hashUsername], "Username taken");
+        require(addressToId[msg.sender] == 0, "address already used"); //each account is associated with address 
+        // bytes32 hashUsername = keccak256(abi.encode(username));
+        // require(hashUsername != Platform.platform_id, "username taken");
+        require(!Platform.investorExists[hashUsername] && !Platform.participantExists[hashUsername], "Username taken");
 
         addressToId[msg.sender] = hashUsername;
         idToAddress[hashUsername] = msg.sender;
@@ -26,10 +27,10 @@ contract InvestorFactory is Platform{
         Platform.usdt.transferFrom(msg.sender, address(this), capital);
         Platform._initiateValue(hashUsername, capital, true, true, msg.sender);
         Platform._mint(msg.sender, numStake);
-        emit newInvestor(hashUsername, numStake);
+        emit changeInvestor(hashUsername, numStake);
     }
     
-    function splitClaim(string memory username) internal {
+    function splitClaim(bytes32 hashUsername) internal {
         // splitting mechanism for now
         // fix floating point stuff later
         uint256 outstandingClaim = Platform.claimAmount;
@@ -60,11 +61,10 @@ contract InvestorFactory is Platform{
                 Platform.investorRisk[Platform.investorIds[i]] = Platform.investorRisk[Platform.investorIds[i]] * (remainingCapital - outstandingClaim) / remainingCapital;
             }
         }
-        bytes32 hashUsername = keccak256(abi.encode(username));
         Platform._updateValue(hashUsername, Platform.claimAmount, true);
     }
 
-    function changeStake(address receiver, uint256 stake, address partner, string memory username) internal {
+    function changeStake(address receiver, uint256 stake, address partner, bytes32 hashUsername) internal {
         // under current implementation if there was someone new, they would have to be the one to call this
         require(stake != 0);
         require(addressToId[partner] != 0);
@@ -74,17 +74,16 @@ contract InvestorFactory is Platform{
         require(partnerBalance - stake >= 0);
         
         if (addressToId[receiver] == 0) {
-            bytes32 hashUsername = keccak256(abi.encode(username));
-            require(hashUsername != Platform.platform_id, "Username taken");
-            require(Platform.investorExists[hashUsername] || Platform.participantExists[hashUsername], "Username taken");
+            // require(hashUsername != Platform.platform_id, "Username taken");
+            require(!Platform.investorExists[hashUsername] && !Platform.participantExists[hashUsername], "Username taken");
 
-            addressToId[reciever] = hashUsername;
+            addressToId[receiver] = hashUsername;
             idToAddress[hashUsername] = msg.sender;
             investorIds.push(hashUsername);
 
             Platform._initiateValue(hashUsername, 0, true, true, msg.sender);
         } else {
-            require(keccak256(abi.encode(username)) == addressToId[msg.sender]);
+            require(hashUsername == addressToId[msg.sender]);
         }
 
         // require(Platform.token.allowance(partner, receiver) >= stake);
