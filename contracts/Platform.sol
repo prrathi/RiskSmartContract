@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Token} from "./Token.sol";
+import {Component} from "./Component.sol";
+import {Admin} from "./Admin.sol";
 
-contract Platform {
+contract Platform is Component{
     uint256 internal totalRisk;
     uint256 public time;
     uint256 public constant duration= 30*24*24*60;
     bool internal canReset = true;
     mapping(bytes32 => uint256) private _balances;
-
-
-    // platform treasury
-    uint256 private treasury = 100000; // to cover excess losses and receive excess gains
 
     //premiums
     uint256 internal participantPremium = 100; //temporary premium amount
@@ -31,30 +27,36 @@ contract Platform {
 
     //platform related id's and addresses
     // bytes32 internal constant platform_id = keccak256("PLATFORM");
-    IERC20 internal usdt = IERC20(address(0xdAC17F958D2ee523a2206206994597C13D831ec7)); // mainnet USDT contract address
 
     //mappings for investors & participants
     // mapping (address => address) public participantIds;
     // mapping (address => address) public investorIds;
     // mapping (address => uint) public participantSplits; 
     // mapping (address => uint) public investorSplits;
-    bytes32 [] internal investorIds;
-    mapping(bytes32 => uint256) internal investorRisk; //capital that can be lost (max loss)
-    mapping(bytes32 => bool) internal investorExists; // prevent repeats
-    bytes32 [] internal participantIds;
-    mapping (bytes32 => bool) internal hasClaimed; //whether participant has claim
-    mapping (bytes32 => bool) internal participantExists; //prevent repeats
-    mapping (bytes32 => address) internal addresses; //for sending usdt at end
+    bytes32 [] public investorIds;
+    mapping(bytes32 => uint256) public investorRisk; //capital that can be lost (max loss)
+    mapping(bytes32 => bool) public investorExists; // prevent repeats
+    bytes32 [] public participantIds;
+    mapping (bytes32 => bool) public hasClaimed; //whether participant has claim
+    mapping (bytes32 => bool) public participantExists; //prevent repeats
+    mapping (bytes32 => address) public addresses; //for sending usdt at end
 
-    //Token
-    Token internal token = new Token("sampleToken");
     uint256 internal stoploss = 50; // stoploss ratio, 50 means .05
 
     // how to keep track of tokens, have mapping from string name to the token itself?
     // especially needed with 2+ tokens and for use by trading.sol
 
+    constructor(Admin _admin, uint256 _premium, uint256 _interest) Component(_admin) {
+        admin.initializePlatform(this);
+        participantPremium = _premium;
+        investorInterest = _interest;
+    }
+
+    function checkExists(bytes32 username) public returns (bool){
+        return (investorExists[username] || participantExists[username]);
+    }
     //initiate accounts for investors and participants, both internal and token balance
-    function _initiateValue(bytes32 username, uint256 amount, bool positive, bool investor, address sender) internal {
+    function _initiateValue(bytes32 username, uint256 amount, bool positive, bool investor, address sender) public onlyComponent {
         require(addresses[username] == address(0) || addresses[username] == sender);
         if (investor && !investorExists[username]) {
             investorIds.push(username);
@@ -63,9 +65,9 @@ contract Platform {
         if (investor) {
             if (amount > 0) {
                 uint256 risk = stoploss * amount / 1000;
-                uint256 tokens = amount / token._getAmountPerStake();
+                uint256 tokens = amount / admin.Token()._getAmountPerStake();
                 amount -= risk;
-                require(positive || token.balanceOf(sender) - tokens >= 0, "can't have negative token balance");
+                require(positive || admin.Token().balanceOf(sender) - tokens >= 0, "can't have negative token balance");
                 if (positive) {
                     totalRisk += risk;
                     investorRisk[username] += risk;
@@ -92,7 +94,7 @@ contract Platform {
     }
 
     // update internal balance
-    function _updateValue(bytes32 username, uint256 amount, bool positive) internal {
+    function _updateValue(bytes32 username, uint256 amount, bool positive) public onlyComponent {
         if (positive) {
             if (participantExists[username] && amount != 0) {
                 require(!hasClaimed[username]);
@@ -105,7 +107,44 @@ contract Platform {
         }
     }
 
-    function _getValue(bytes32 username) internal view returns (uint256) {
+    function splitClaim(bytes32 hashUsername) public onlyComponent {
+        // splitting mechanism for now
+        // fix floating point stuff later
+        require(participantExists[hashUsername] && hasClaimed[hashUsername] == false);
+        hasClaimed[hashUsername] = true;
+
+        uint256 outstandingClaim = claimAmount;
+        uint256 unitClaim = claimAmount/admin.Token().totalSupply(); // how much each person has to pay -> won't be actual calculation
+        uint256 remainingCapital = 0;
+        for (uint i = 0; i < investorIds.length; i++) {
+            bytes32 investorId = investorIds[i];
+            if (investorRisk[investorId] >= unitClaim*admin.Token().balanceOf(idToAddress[investorIds[i]])) {
+                _updateValue(investorIds[i], unitClaim*admin.Token().balanceOf(idToAddress[investorIds[i]]), false);
+                investorRisk[investorId] -= unitClaim*admin.Token().balanceOf(idToAddress[investorIds[i]]);
+                outstandingClaim -= unitClaim*admin.Token().balanceOf(idToAddress[investorIds[i]]);
+                remainingCapital += investorRisk[investorId];
+            } else{
+                if (investorRisk[investorId] > 0) {
+                    _updateValue(investorIds[i], investorRisk[investorId], false);
+                    investorRisk[investorId] = 0;
+                    outstandingClaim -= investorRisk[investorId];
+                }
+            }
+        }
+        if (remainingCapital <= outstandingClaim) {
+            for (uint i = 0; i < investorIds.length; i++) {
+                investorRisk[investorIds[i]] = 0;
+            }
+            _changeTreasury(outstandingClaim - remainingCapital, false);
+        } else{
+            for (uint i = 0; i < investorIds.length; i++) {
+                investorRisk[investorIds[i]] = investorRisk[investorIds[i]] * (remainingCapital - outstandingClaim) / remainingCapital;
+            }
+        }
+        _updateValue(hashUsername, claimAmount, true);
+    }
+
+    function _getValue(bytes32 username) public onlyComponent view returns (uint256) {
         return _balances[username];
     }
 
@@ -137,7 +176,7 @@ contract Platform {
             uint256 value = _getValue(investorIds[i]);
             require(value >= 0);
             if (value > 0) {
-                usdt.transfer(addresses[investorIds[i]], value);
+                admin.Currency().transfer(addresses[investorIds[i]], value);
             }
             _balances[investorIds[i]] = 0;
             address investor = addresses[investorIds[i]];
@@ -151,7 +190,7 @@ contract Platform {
 
         for (uint256 i = 0; i < participantIds.length; i++) {
             if (hasClaimed[participantIds[i]]) {
-                usdt.transfer(addresses[participantIds[i]], Platform.claimAmount);
+                admin.Currency().transfer(addresses[participantIds[i]], Platform.claimAmount);
             }
             _balances[participantIds[i]] = 0;
             addresses[participantIds[i]] = address(0);
@@ -173,20 +212,20 @@ contract Platform {
         return block.timestamp - time;
     }
 
-    function _updateCapital() public {
+    function _updateCapital() public onlyComponent {
         //if a new investor joins update totalCapital
         //goes through each investor and updates the capital
     }
 
-    function _mint(address addr, uint256 amount) internal {
-        token._mint(addr, amount);
+    function _mint(address addr, uint256 amount) public onlyComponent {
+        admin.Token()._mint(addr, amount);
     }
 
-    function _burn(address addr, uint256 amount) internal {
-        token._burn(addr, amount);
+    function _burn(address addr, uint256 amount) public onlyComponent {
+        admin.Token()._burn(addr, amount);
     }
 
-    function _changeTreasury(uint256 amount, bool positive) internal {
+    function _changeTreasury(uint256 amount, bool positive) public onlyComponent {
         if (!positive) {
             require(treasury - amount >= 0, "Platform out of money");
             treasury -= amount;

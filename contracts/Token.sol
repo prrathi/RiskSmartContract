@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {WadMath} from "./WadMath.sol";
-import {PlatformSetup} from "./PlatformSetup.sol";
+import {Component} from "./Component.sol";
+import {Admin} from "./Admin.sol";
 
-contract Token is IERC20, PlatformSetup{
+contract Token is IERC20, Component{
 
     uint256 public constant MIN_SCALE = 1e8;
 
@@ -12,10 +12,9 @@ contract Token is IERC20, PlatformSetup{
     mapping(address => mapping(address => uint256)) private _allowances;
     string internal _name;
     uint256 internal _totalSupply; // some constant * WadMath.WAD/MIN_SCALE total value held in token divided by value per stake
-    uint256 internal _currSupply; // current value of investment
     uint256 internal constant _amountPerStake = 100;
 
-constructor(string memory name_) {
+constructor(Admin admin_, string memory name_) Component(admin_) {
     require(msg.sender == address(this)); // only contract can initialize
     _name = name_;
 }

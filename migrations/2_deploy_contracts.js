@@ -1,5 +1,5 @@
-const InvestorFactory = artifacts.require('InvestorFactory');
+const PlatformSetup = artifacts.require('PlatformSetup');
 module.exports = (deployer) => {
-    deployer.deploy(InvestorFactory, {gas: 10000000});
+    deployer.deploy(PlatformSetup, {gas: 10000000});
 }
 

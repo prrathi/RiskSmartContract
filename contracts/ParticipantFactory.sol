@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
-import "./Platform.sol";
-import "./InvestorFactory.sol";
+import {Admin} from "./Admin.sol";
 
-contract ParticipantFactory is InvestorFactory {
+contract ParticipantFactory {
 
     /*
         1.) How do claims work? How does the information come in?
@@ -20,7 +19,7 @@ contract ParticipantFactory is InvestorFactory {
     struct Participant {
         uint coverageSize;
         uint premium; //participant premium to investors
-        uint profit;
+        // uint profit;
         // uint totalInvestor;
     }
 
@@ -29,7 +28,6 @@ contract ParticipantFactory is InvestorFactory {
         uint256 paymentToInvestor;
         //Claim if we make contract for claims
     }
-
 
     //all participants on platform
     // Participant[] public participants;
@@ -44,24 +42,24 @@ contract ParticipantFactory is InvestorFactory {
 
     event newParticipant(bytes32 hashUsername, uint coverageSize, uint totalClaims, uint premium);
 
-    function createParticipant(uint _coverageSize, uint _totalClaims, uint _premium, bytes32 hashUsername) public {
-        require(Platform._getParticipantOpen(), "currently closed");
+    constructor(Admin _admin) Component(_admin){}
+
+    function createParticipant(uint _coverageSize, uint _premium, bytes32 hashUsername) public {
+        require(admin.Platform()._getParticipantOpen(), "currently closed");
         //hashing is done here (need to check if this works)
         require(addresstoId[msg.sender] == 0);
         // bytes32 hashUsername = keccak256(abi.encode(username));
-        // require(hashUsername !=Platform.platform_id, "Username taken");
-        require(!Platform.investorExists[hashUsername] && !Platform.participantExists[hashUsername], "Username taken");
+        require(!admin.Platform().checkExists(), "Username taken");
         addresstoId[msg.sender] = hashUsername;
-        idToAddress[hashUsername] = msg.sender;
-        idToParticipant[hashUsername] = Participant(_coverageSize, _totalClaims, _premium);
-        // usdt.approve(address(this), Platform.premium); //GET ACTUAL APPROVAL MECHANISM
-        Platform.usdt.transferFrom(msg.sender, address(this), Platform.participantPremium);
+        idToParticipant[hashUsername] = Participant(_coverageSize, _premium);
+        // admin.Currency().approve(address(this), admin.Platform().premium); //GET ACTUAL APPROVAL MECHANISM
+        admin.Currency().transferFrom(msg.sender, address(this), admin.Platform().participantPremium);
         // participantAddresses[hashUsername] = Participant(0, 0);
-        // Platform._initiateValue(hashUsername, _value, false, false, msg.sender); don't know what this is
+        admin.Platform()._initiateValue(hashUsername, _value, false, false, msg.sender); 
         emit newParticipant(hashUsername, _coverageSize, _totalClaims, _premium);
     }
 
-    //mapping for values which can all be accessible from the platform
+    //mapping for values which can all be accessible from the admin.Platform()
     mapping (address => uint) public mapCoverageSize;
     mapping (address => uint) public mapTotalClaims;
     mapping (address => uint) public mapPremium;
@@ -69,14 +67,12 @@ contract ParticipantFactory is InvestorFactory {
     mapping (address => bool) public mapOpen;
 
     //register the claim
-    function registerClaim(bytes32 hashUsername/* string memory claimUsername*/) public {
+    function registerClaim(bytes32 hashUsername) public {
         require(addresstoId[msg.sender] != 0);
         // string memory hashUsername = keccak256(abi.encode(username));
         require(hashUsername == addresstoId[msg.sender]);
-        require(hasClaimed[hashUsername] == false);
-        hasClaimed[hashUsername] = true;
         // Participant storage myParticipant = participantAddresses[hashUsername]; //storage means pass by reference
-        InvestorFactory.splitClaim(hashUsername);
+        admin.Platform().splitClaim(hashUsername);
         // if there is a claim username we would want to push that into claims array
     }
 

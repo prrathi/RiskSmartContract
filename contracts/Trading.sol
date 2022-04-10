@@ -2,12 +2,12 @@
 pragma solidity >= 0.8.0;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {InvestorFactory} from "./InvestorFactory.sol";
-import {Platform} from "./Platform.sol";
+import {Component} from "./Component.sol";
+import {Admin} from "./Admin.sol";
 
 // ADAPTED FROM https://github.com/HQ20/contracts/blob/master/contracts/classifieds/Classifieds.sol
 
-contract Market is InvestorFactory {
+contract Trading is Component {
     event TradeStatusChange(uint256 ad, bytes32 status);
 
     IERC20 currencyToken = IERC20(address(0xdAC17F958D2ee523a2206206994597C13D831ec7));
@@ -24,8 +24,7 @@ contract Market is InvestorFactory {
 
     uint256 tradeCounter;
 
-    constructor (address _itemTokenAddress) 
-    {
+    constructor (Admin _admin, address _itemTokenAddress) Component(_admin) {
         itemToken = IERC20(_itemTokenAddress);
         tradeCounter = 0;
     }
