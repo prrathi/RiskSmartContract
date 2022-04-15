@@ -19,8 +19,8 @@ contract Platform is Component{
     
     //registration control
     uint256 internal max; //we need some maximum limit where investor/participant are closed off
-    bool isInvestorOpen = true;
-    bool isParticipantOpen = true;
+    bool public isInvestorOpen = true;
+    bool public isParticipantOpen = true;
 
     //claim amount
     uint256 internal claimAmount = 1000; // temporary
@@ -33,13 +33,13 @@ contract Platform is Component{
     // mapping (address => address) public investorIds;
     // mapping (address => uint) public participantSplits; 
     // mapping (address => uint) public investorSplits;
-    bytes32 [] public investorIds;
-    mapping(bytes32 => uint256) public investorRisk; //capital that can be lost (max loss)
-    mapping(bytes32 => bool) public investorExists; // prevent repeats
-    bytes32 [] public participantIds;
-    mapping (bytes32 => bool) public hasClaimed; //whether participant has claim
-    mapping (bytes32 => bool) public participantExists; //prevent repeats
-    mapping (bytes32 => address) public addresses; //for sending usdt at end
+    bytes32 [] internal investorIds;
+    mapping(bytes32 => uint256) internal investorRisk; //capital that can be lost (max loss)
+    mapping(bytes32 => bool) internal investorExists; // prevent repeats
+    bytes32 [] internal participantIds;
+    mapping (bytes32 => bool) internal hasClaimed; //whether participant has claim
+    mapping (bytes32 => bool) internal participantExists; //prevent repeats
+    mapping (bytes32 => address) internal addresses; //for sending usdt at end
 
     uint256 internal stoploss = 50; // stoploss ratio, 50 means .05
 
@@ -146,14 +146,6 @@ contract Platform is Component{
 
     function _getValue(bytes32 username) public onlyComponent view returns (uint256) {
         return _balances[username];
-    }
-
-    function _getInvestorOpen() public view returns (bool) {
-        return isInvestorOpen;
-    }
-
-    function _getParticipantOpen() public view returns (bool) {
-        return isParticipantOpen;
     }
 
     // called by the trading platform

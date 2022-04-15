@@ -15,7 +15,7 @@ contract InvestorFactory {
 
     function createInvestor(uint256 _capital, bytes32 hashUsername) public {
         // some indicator or capping factor would set finished to true
-        require(admin.Platform()._getInvestorOpen(), "currently closed");
+        require(admin.Platform().isInvestorOpen, "currently closed");
         require(addressToId[msg.sender] == 0, "address already used"); //each account is associated with address 
         // bytes32 hashUsername = keccak256(abi.encode(username));
         // require(hashUsername != Platform.platform_id, "username taken");

@@ -45,7 +45,7 @@ contract ParticipantFactory {
     constructor(Admin _admin) Component(_admin){}
 
     function createParticipant(uint _coverageSize, uint _premium, bytes32 hashUsername) public {
-        require(admin.Platform()._getParticipantOpen(), "currently closed");
+        require(admin.Platform().isParticipantOpen, "currently closed");
         //hashing is done here (need to check if this works)
         require(addresstoId[msg.sender] == 0);
         // bytes32 hashUsername = keccak256(abi.encode(username));
