@@ -23,7 +23,7 @@ contract NewPlatform {
     bool public isParticipantOpen = true;
 
     //claim amount
-    uint256 private claimAmount = 1000; // temporary
+    uint256 private claimAmount; // temporary
 
     //money
     IERC20 private _currency = IERC20(address(0xdAC17F958D2ee523a2206206994597C13D831ec7)); // mainnet USDT contract address
@@ -50,10 +50,11 @@ contract NewPlatform {
     // how to keep track of tokens, have mapping from string name to the token itself?
     // especially needed with 2+ tokens and for use by trading.sol
 
-    constructor(bytes32 tokenName, uint256 _premium, uint256 _interest){
+    constructor(bytes32 tokenName, uint256 _premium, uint256 _interest, uint256 _loss){
         token = new Token(tokenName);
         participantPremium = _premium;
         investorInterest = _interest;
+        claimAmount = _loss;
     }
 
     function checkExists(bytes32 username) public view returns (bool){
@@ -245,13 +246,6 @@ contract NewPlatform {
         // }
     }
 
-    struct Participant {
-        uint coverageSize;
-        uint premium; //participant premium to investors
-        // uint profit;
-        // uint totalInvestor;
-    }
-
     // struct Payments {
         // address investorAddress;
         // uint256 paymentToInvestor;
@@ -262,27 +256,26 @@ contract NewPlatform {
     // Participant[] public participants;
     // Payments[] public payments;
     // bytes32[] public particpantsIds;
-    mapping (bytes32 => Participant) idToParticipant;
+    // mapping (bytes32 => Participant) idToParticipant;
     // address[] public participantAddresses;
     
     //address
-    mapping (address => bytes32) participantAddressToId;
+    mapping (address => bytes32) public participantAddressToId;
     // mapping (bytes32 => address) idToAddress; //from platform to Participant
 
-    event newParticipant(bytes32 hashUsername, uint coverageSize, uint premium);
+    event newParticipant(bytes32 hashUsername);
 
-    function createParticipant(bytes32 hashUsername, uint _coverageSize, uint _premium) public {
+    function createParticipant(bytes32 hashUsername) public {
         require(isParticipantOpen, "currently closed");
         require(participantAddressToId[msg.sender] == 0);
         // bytes32 hashUsername = keccak256(abi.encode(username));
         require(!checkExists(hashUsername), "Username taken");
         participantAddressToId[msg.sender] = hashUsername;
-        idToParticipant[hashUsername] = Participant(_coverageSize, _premium);
         // _currency.approve(address(this), premium); //GET ACTUAL APPROVAL MECHANISM
         _currency.transferFrom(msg.sender, address(this), participantPremium);
         // participantAddresses[hashUsername] = Participant(0, 0);
-        _initiateValue(hashUsername, 0, false, false, msg.sender); 
-        emit newParticipant(hashUsername, _coverageSize, _premium);
+        // _initiateValue(hashUsername, 0, false, false, msg.sender); 
+        emit newParticipant(hashUsername);
     }
 
     //mapping for values which can all be accessible from the admin.Platform()
