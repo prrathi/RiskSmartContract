@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "./IERC20.sol";
 import {Token} from "./Token.sol";
 
 contract NewPlatform {
@@ -26,8 +26,8 @@ contract NewPlatform {
     uint256 private claimAmount; // temporary
 
     //money
-    IERC20 private _currency = IERC20(address(0xdAC17F958D2ee523a2206206994597C13D831ec7)); // mainnet USDT contract address
-    Token token;
+    IERC20 private _currency; // = IERC20(address(0xdAC17F958D2ee523a2206206994597C13D831ec7)); // mainnet USDT contract address
+    Token private token;
 
     //platform related id's and addresses
     // bytes32 private constant platform_id = keccak256("PLATFORM");
@@ -46,16 +46,36 @@ contract NewPlatform {
     mapping (bytes32 => address) private addresses; //for sending usdt at end
 
     uint256 private stoploss = 50; // stoploss ratio, 50 means .05
+    bool private call = true;
 
+    address private owner;
+    address public fake;
     // how to keep track of tokens, have mapping from string name to the token itself?
     // especially needed with 2+ tokens and for use by trading.sol
+    modifier onlyOwner() {
+        require(msg.sender == owner, "not owner");
+        _;
+    }
 
-    constructor(bytes32 tokenName, uint256 _premium, uint256 _interest, uint256 _loss){
-        token = new Token(tokenName);
+    constructor(/*address currency,*/ uint256 _premium, uint256 _interest, uint256 _loss) {
+        // fake = currency;
+        // _currency = IERC20(currency);
+        owner = msg.sender;
         participantPremium = _premium;
         investorInterest = _interest;
         claimAmount = _loss;
     }
+
+    function initialize(address currency, bytes32 tok) public onlyOwner {
+        require(call, "not callable");
+        _currency = IERC20(currency);
+        token = new Token(tok);
+        call = false;
+    }
+
+    // function play() public view returns (address) {
+        // return owner;
+    // }
 
     function checkExists(bytes32 username) public view returns (bool){
         return (investorExists[username] || participantExists[username]);
@@ -89,10 +109,6 @@ contract NewPlatform {
             participantIds.push(username);
             participantExists[username] = true;
             amount = 0;
-            // preferably add or subtract from balance, but this would require having sufficient value
-            // assuming so...
-            // amount = amount * interest / 1000;
-            // if not, in participants.sol require an allowance of the premium calculation times interest
         }
         addresses[username] = sender;
         _updateValue(username, amount, positive);
@@ -100,15 +116,17 @@ contract NewPlatform {
 
     // update private balance
     function _updateValue(bytes32 username, uint256 amount, bool positive) private {
-        if (positive) {
-            if (participantExists[username] && amount != 0) {
-                require(!hasClaimed[username]);
-                hasClaimed[username] = true;
+        if (amount != 0) {
+            if (positive) {
+                if (participantExists[username] && amount != 0) {
+                    require(!hasClaimed[username]);
+                    hasClaimed[username] = true;
+                }
+                _balances[username] += amount;
             }
-            _balances[username] += amount;
-        }
-        else{
-            _balances[username] -= amount;
+            else{
+                _balances[username] -= amount;
+            }
         }
     }
 
@@ -158,7 +176,7 @@ contract NewPlatform {
         canReset = val;
     }
 
-    function _startTimeCycle() private {
+    function _startTimeCycle() public onlyOwner {
         require(time == 0); //for month cycle
         isInvestorOpen = false;
         isParticipantOpen = false;
@@ -265,16 +283,16 @@ contract NewPlatform {
 
     event newParticipant(bytes32 hashUsername);
 
-    function createParticipant(bytes32 hashUsername) public {
+    function createParticipant(bytes32 hashUsername) public returns (uint256) {
+        // return _currency.allowance(msg.sender, address(this));
         require(isParticipantOpen, "currently closed");
-        require(participantAddressToId[msg.sender] == 0);
-        // bytes32 hashUsername = keccak256(abi.encode(username));
-        require(!checkExists(hashUsername), "Username taken");
+        require(participantAddressToId[msg.sender] == 0, "address used");
+        require(!checkExists(hashUsername), "username taken");
         participantAddressToId[msg.sender] = hashUsername;
         // _currency.approve(address(this), premium); //GET ACTUAL APPROVAL MECHANISM
-        _currency.transferFrom(msg.sender, address(this), participantPremium);
+        _currency.transferFrom(msg.sender, address(this), 100);
         // participantAddresses[hashUsername] = Participant(0, 0);
-        // _initiateValue(hashUsername, 0, false, false, msg.sender); 
+        _initiateValue(hashUsername, 0, false, false, msg.sender); 
         emit newParticipant(hashUsername);
     }
 
@@ -302,21 +320,19 @@ contract NewPlatform {
     function createInvestor(uint256 _capital, bytes32 hashUsername) public {
         // some indicator or capping factor would set finished to true
         require(isInvestorOpen, "currently closed");
-        require(investorAddressToId[msg.sender] == 0, "address already used"); //each account is associated with address 
-        // bytes32 hashUsername = keccak256(abi.encode(username));
-        // require(hashUsername != Platform.platform_id, "username taken");
-        require(!checkExists(hashUsername), "Username taken");
+        require(investorAddressToId[msg.sender] == 0, "address used"); //each account is associated with address 
+        require(!checkExists(hashUsername), "username taken");
 
         investorAddressToId[msg.sender] = hashUsername;
         uint256 numStake = _capital/token._getAmountPerStake();
         uint256 capital = numStake * token._getAmountPerStake();
         // usdt.approve(address(this), _capital); //GET ACTUAL APPROVAL MECHANISM
-        _currency.transferFrom(msg.sender, address(this), capital);
+        _currency.transferFrom(msg.sender, address(this), _capital);
+        _currency.transfer(msg.sender, (_capital - capital));
         _initiateValue(hashUsername, capital, true, true, msg.sender);
         _mint(msg.sender, numStake);
         emit changeInvestor(hashUsername, numStake);
     }
-    
 
     function changeStake(address receiver, uint256 stake, address partner, bytes32 hashUsername) private {
         // under current implementation if there was someone new, they would have to be the one to call this

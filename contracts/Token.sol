@@ -13,16 +13,16 @@ contract Token is IERC20{
     uint256 internal constant _amountPerStake = 100;
     address private owner;
 
+modifier onlyOwner() {
+  require(msg.sender == owner);
+  _;
+}
+
 constructor(bytes32 name_) { //public for now
     // require(msg.sender == address(this)); // only contract can initialize
     // we need to change the above after demo
     _name = name_;
     owner = msg.sender;
-}
-
-modifier onlyOwner() {
-  require(msg.sender == owner);
-  _;
 }
 
 function name() public view returns (bytes32) {
