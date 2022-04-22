@@ -64,7 +64,7 @@ contract NewPlatform {
         participantPremium = _premium;
         investorInterest = _interest;
         claimAmount = _loss;
-    }
+    } 
 
     function initialize(address currency, bytes32 tok) public onlyOwner {
         require(call, "not callable");
@@ -118,10 +118,6 @@ contract NewPlatform {
     function _updateValue(bytes32 username, uint256 amount, bool positive) private {
         if (amount != 0) {
             if (positive) {
-                if (participantExists[username] && amount != 0) {
-                    require(!hasClaimed[username]);
-                    hasClaimed[username] = true;
-                }
                 _balances[username] += amount;
             }
             else{
@@ -133,7 +129,6 @@ contract NewPlatform {
     function splitClaim(bytes32 hashUsername) private {
         // splitting mechanism for now
         // fix floating point stuff later
-        require(participantExists[hashUsername] && hasClaimed[hashUsername] == false);
         hasClaimed[hashUsername] = true;
 
         uint256 outstandingClaim = claimAmount;
@@ -164,7 +159,7 @@ contract NewPlatform {
                 investorRisk[investorIds[i]] = investorRisk[investorIds[i]] * (remainingCapital - outstandingClaim) / remainingCapital;
             }
         }
-        _updateValue(hashUsername, claimAmount, true);
+        // _updateValue(hashUsername, claimAmount, true); // not needed
     }
 
     function _getValue(bytes32 username) private view returns (uint256) {
@@ -183,13 +178,16 @@ contract NewPlatform {
         time = block.timestamp;
     }
 
-    function _resetTimeCycle() private {
+    function _resetTimeCycle() public onlyOwner {
         // first do the premium allocation to investors
         // then return things and reset
         _payPremium();
         for (uint256 i = 0; i < investorIds.length; i++) {
             uint256 value = _getValue(investorIds[i]);
-            require(value >= 0);
+            require(value >= 0, "capital negative value");
+            uint256 value2 = investorRisk[investorIds[i]];
+            require(value2 >= 0, "risk money negative value");
+            value += value2;            
             if (value > 0) {
                 _currency.transfer(addresses[investorIds[i]], value);
             }
@@ -255,7 +253,7 @@ contract NewPlatform {
         uint256 excess = participantIds.length * participantPremium - investorIds.length * investorInterest;
         for (uint256 i = 0; i < investorIds.length; i++) { 
             // if the premium amount is constant regardless of losses
-            uint256 investorPremium = investorInterest * token.balanceOf(addresses[investorIds[i]]);
+            uint256 investorPremium = investorInterest * token._getAmountPerStake() * token.balanceOf(addresses[investorIds[i]]) / 1000;
             _updateValue(investorIds[i], investorPremium, true);
         }
         require(excess >= 0);
@@ -283,7 +281,7 @@ contract NewPlatform {
 
     event newParticipant(bytes32 hashUsername);
 
-    function createParticipant(bytes32 hashUsername) public returns (uint256) {
+    function createParticipant(bytes32 hashUsername) public {
         // return _currency.allowance(msg.sender, address(this));
         require(isParticipantOpen, "currently closed");
         require(participantAddressToId[msg.sender] == 0, "address used");
@@ -305,10 +303,8 @@ contract NewPlatform {
 
     //register the claim
     function registerClaim(bytes32 hashUsername) public {
-        require(participantAddressToId[msg.sender] != 0);
-        // string memory hashUsername = keccak256(abi.encode(username));
-        require(hashUsername == participantAddressToId[msg.sender]);
-        // Participant storage myParticipant = participantAddresses[hashUsername]; //storage means pass by reference
+        require(hashUsername == participantAddressToId[msg.sender], "invalid user");
+        require(!hasClaimed[hashUsername], "claim already filed");
         splitClaim(hashUsername);
         // if there is a claim username we would want to push that into claims array
     }
@@ -330,7 +326,6 @@ contract NewPlatform {
         _currency.transferFrom(msg.sender, address(this), _capital);
         _currency.transfer(msg.sender, (_capital - capital));
         _initiateValue(hashUsername, capital, true, true, msg.sender);
-        _mint(msg.sender, numStake);
         emit changeInvestor(hashUsername, numStake);
     }
 
