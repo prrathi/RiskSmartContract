@@ -71,7 +71,7 @@ contract("NewPlatform", (accounts) => {
     await platform1._startTimeCycle();
 
     await platform1.registerClaim(participantName1, {from: accounts[1]});
-    
+
     await platform1._resetTimeCycle(); 
     
     var val;

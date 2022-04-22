@@ -73,9 +73,12 @@ contract NewPlatform {
         call = false;
     }
 
-    // function play() public view returns (address) {
-        // return owner;
-    // }
+    function play(bytes32 username) public view returns (uint256) {
+        return investorRisk[username];
+    }
+    function play2(bytes32 username) public view returns (uint256) {
+        return _balances[username];
+    }
 
     function checkExists(bytes32 username) public view returns (bool){
         return (investorExists[username] || participantExists[username]);
@@ -137,13 +140,11 @@ contract NewPlatform {
         for (uint i = 0; i < investorIds.length; i++) {
             bytes32 investorId = investorIds[i];
             if (investorRisk[investorId] >= unitClaim*token.balanceOf(addresses[investorIds[i]])) {
-                _updateValue(investorIds[i], unitClaim*token.balanceOf(addresses[investorIds[i]]), false);
                 investorRisk[investorId] -= unitClaim*token.balanceOf(addresses[investorIds[i]]);
                 outstandingClaim -= unitClaim*token.balanceOf(addresses[investorIds[i]]);
                 remainingCapital += investorRisk[investorId];
             } else{
                 if (investorRisk[investorId] > 0) {
-                    _updateValue(investorIds[i], investorRisk[investorId], false);
                     investorRisk[investorId] = 0;
                     outstandingClaim -= investorRisk[investorId];
                 }
@@ -160,10 +161,6 @@ contract NewPlatform {
             }
         }
         // _updateValue(hashUsername, claimAmount, true); // not needed
-    }
-
-    function _getValue(bytes32 username) private view returns (uint256) {
-        return _balances[username];
     }
 
     // called by the trading platform
@@ -183,7 +180,7 @@ contract NewPlatform {
         // then return things and reset
         _payPremium();
         for (uint256 i = 0; i < investorIds.length; i++) {
-            uint256 value = _getValue(investorIds[i]);
+            uint256 value = _balances[investorIds[i]];
             require(value >= 0, "capital negative value");
             uint256 value2 = investorRisk[investorIds[i]];
             require(value2 >= 0, "risk money negative value");
@@ -363,7 +360,7 @@ contract NewPlatform {
     function getValue() public view returns (uint256) {
         require(investorAddressToId[msg.sender] != 0);
         bytes32 hashedUsername = investorAddressToId[msg.sender];
-        return _getValue(hashedUsername);
+        return _balances[hashedUsername];
     } 
 
     event TradeStatusChange(uint256 ad, bytes32 status);
