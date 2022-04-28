@@ -8,9 +8,11 @@ contract Token is IERC20{
 
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
-    bytes32 internal _name;
-    uint256 internal _totalSupply; // some constant * WadMath.WAD/MIN_SCALE total value held in token divided by value per stake
-    uint256 internal constant _amountPerStake = 100;
+    bytes32 public name;
+    uint256 public investorInterest;
+    uint256 public stopLoss;
+    uint256 public override totalSupply; // some constant * WadMath.WAD/MIN_SCALE total value held in token divided by value per stake
+    uint256 private constant _amountPerStake = 100;
     address private owner;
 
 modifier onlyOwner() {
@@ -18,19 +20,13 @@ modifier onlyOwner() {
   _;
 }
 
-constructor(bytes32 name_) { //public for now
+constructor(bytes32 name_, uint256 investorInterest_, uint256 stopLoss_) { //public for now
     // require(msg.sender == address(this)); // only contract can initialize
     // we need to change the above after demo
-    _name = name_;
+    name = name_;
+    investorInterest = investorInterest_;
+    stopLoss = stopLoss_;
     owner = msg.sender;
-}
-
-function name() public view returns (bytes32) {
-    return _name;
-}
-
-function totalSupply() public view override returns (uint256) {
-    return _totalSupply;
 }
 
 function balanceOf(address tokenOwner) public view override returns (uint256){
@@ -99,7 +95,7 @@ function _approve(
   function _mint(address account, uint256 amount) external onlyOwner {
     require(account != address(0), "mint to the zero address");
 
-    _totalSupply += amount;
+    totalSupply += amount;
     _balances[account] += amount;
     // emit Transfer(address(0), account, amount);
   }
@@ -109,7 +105,7 @@ function _approve(
     uint256 accountBalance = _balances[account];
     require(accountBalance >= amount, "Burn amount exceeds balance");
     _balances[account] = accountBalance - amount;
-    _totalSupply -= amount;
+    totalSupply -= amount;
     // emit Transfer(address(0), account, amount);
   }
 
