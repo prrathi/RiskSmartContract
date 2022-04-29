@@ -21,7 +21,7 @@ contract NewPlatform {
     
     //registration control
     uint256 private max; //we need some maximum limit where investor/participant are closed off
-    bool public isInvestorOpen = true;
+    bool public isInvestorOpen = false;
     bool public isParticipantOpen = true;
 
     //claim amount
@@ -66,12 +66,13 @@ contract NewPlatform {
         claimAmount = _loss;
     } 
 
+    function tradingAddress() public view returns (address) {
+        return address(trading);
+    }
+
     function addToken(bytes32 tokenName, uint256 investorInterest, uint256 stopLoss) public onlyOwner {
-        // _currency = IERC20(currency);
         Token token = new Token(tokenName, investorInterest, stopLoss);
         tokens[tokenName] = address(token);
-        // Trading trading = new Trading(address(_currency), address(token));
-        // trades[tokenName] = address(trading);
         tokensArray.push(tokenName);
     }
 
@@ -141,15 +142,10 @@ contract NewPlatform {
         }
     }
 
-    // // called by the trading platform
-    // function _changeReset(bool val) private {
-        // canReset = val;
-    // }
-
     function _startTimeCycle() public onlyOwner {
         require(time == 0); //for month cycle
+        require(isInvestorOpen);
         isInvestorOpen = false;
-        isParticipantOpen = false;
         time = block.timestamp;
     }
 
@@ -196,7 +192,6 @@ contract NewPlatform {
 
         totalInterest = 0;
         totalRisk = 0;
-        isInvestorOpen = true;
         isParticipantOpen = true;
     }
 
@@ -219,15 +214,6 @@ contract NewPlatform {
         currToken._burn(addr, amount);
     }
 
-    // function _changeTreasury(uint256 amount, bool positive) private {
-        // if (!positive) {
-            // require(treasury - amount >= 0, "Platform out of money");
-            // treasury -= amount;
-        // } else{
-            // treasury += amount;
-        // }
-    // }
-
     function _payPremium() private {
         // do the calculations
         uint256 excess = participantIds.length * participantPremium - totalInterest;
@@ -242,6 +228,13 @@ contract NewPlatform {
                 }
             }
         }
+    }
+
+    function participantClose() public onlyOwner {
+        require(isParticipantOpen);
+        isParticipantOpen = false;
+        // at this point oracle would be called to get data
+        isInvestorOpen = true;
     }
     
     //address
@@ -279,7 +272,7 @@ contract NewPlatform {
 
     mapping (address => bytes32) investorAddressToId; //address to id for platform
 
-    event changeInvestor(bytes32 _hashUsername, uint256 tokens); // add type of token in future
+    event changeInvestor(bytes32 token, bytes32 _hashUsername, uint256 tokens, bool sign); // add type of token in future
 
     function createInvestor(bytes32 token, uint256 _capital, bytes32 hashUsername) public {
         // some indicator or capping factor would set finished to true
@@ -302,15 +295,14 @@ contract NewPlatform {
         }
         totalInterest += Token(tokens[token]).investorInterest() * capital / 1000;
         _initiateValue(token, hashUsername, capital, true, true, msg.sender);
-        emit changeInvestor(hashUsername, numStake);
+        emit changeInvestor(token, hashUsername, numStake, true);
     }
 
     function changeStake(bytes32 token, address receiver, uint256 stake, address partner, bytes32 hashUsername) private {
-        // under current implementation if there was someone new, they would have to be the one to call this
         require(stake != 0);
         require(investorAddressToId[partner] != 0);
         require(Token(tokens[token]).balanceOf(receiver) + stake >= 0);
-        require(Token(tokens[token]).balanceOf(partner)- stake >= 0);
+        require(Token(tokens[token]).balanceOf(partner) - stake >= 0);
         
         if (investorAddressToId[receiver] == 0) {
             require(!(investorExists[hashUsername] || participantExists[hashUsername]), "username taken");
@@ -318,13 +310,11 @@ contract NewPlatform {
         } else {
             require(hashUsername == investorAddressToId[receiver]);
         }
-        // not sure how the actual transfer works
-        // do we facilitate the creation of allowance and then transfer?
-        // alternate method: burn one person's and mint another person's
+        // burn one person's and mint another person's
         _initiateValue(token, investorAddressToId[partner], stake*Token(tokens[token])._getAmountPerStake(), false, true, partner);
         _initiateValue(token, investorAddressToId[receiver], stake*Token(tokens[token])._getAmountPerStake(), true, true, receiver);
-        emit changeInvestor(hashUsername, stake);
-        emit changeInvestor(investorAddressToId[partner], 0 - stake);
+        emit changeInvestor(token, hashUsername, stake, true);
+        emit changeInvestor(token, investorAddressToId[partner], stake, false);
     }
 
     function getValue() public view returns (uint256) {
@@ -333,13 +323,14 @@ contract NewPlatform {
         return _balances[hashedUsername];
     } 
 
-    function openTrade(bytes32 token, uint256 amount, uint256 price) public duringSession {
+    function openTrade(bytes32 token, uint256 amount, uint256 price) public duringSession returns (uint256) {
         require(Token(tokens[token]).balanceOf(msg.sender) >= amount, "requested sell size larger than stake size");
         trading.openTrade(msg.sender, token, amount, price);
     }
 
     function executeTrade(bytes32 token, uint256 amount, uint256 trade, bytes32 hashUsername) public duringSession {
-        address poster = trading.executeTrade(token, amount, trade, hashUsername, msg.sender);
+        // requires allowance of amount * trading price from msg.sender to trading address
+        address poster = trading.executeTrade(token, amount, trade, msg.sender);
         changeStake(token, msg.sender, amount, poster, hashUsername);
     }
 

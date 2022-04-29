@@ -71,7 +71,7 @@ contract Trading {
      * @param _amount The amount of tokens to buy at that price
      * @param _trade The id of an existing trade
      */
-    function executeTrade(bytes32 token, uint256 _amount, uint256 _trade, bytes32 hashUsername, address sender) public onlyOwner returns (address)
+    function executeTrade(bytes32 token, uint256 _amount, uint256 _trade, address sender) public onlyOwner returns (address)
     {
         // need to prompt the buyer to give the spender tokens
         require(_trade < tradeCounter && _trade >= 0, "invalid trade id"); 
@@ -83,7 +83,13 @@ contract Trading {
         require(sender != trade.poster, "can't sell to yourself");
         require(_currency.balanceOf(sender) > _amount * trade.price, "insufficient balance");
         // assuming allowance has been granted
-        _currency.transferFrom(sender, trade.poster, _amount * trade.price);
+        _currency.transferFrom(sender, address(this), _amount * trade.price);
+        _currency.transfer(trade.poster, _amount * trade.price);
+        uint256 excess = _currency.allowance(sender, address(this));
+        if (excess > 0) {
+           _currency.transferFrom(sender, address(this), excess); 
+           _currency.transfer(sender, excess);
+        }
         trade.status = "Executed";
         emit TradeStatusChange(_trade, "Executed");
         return trade.poster;
