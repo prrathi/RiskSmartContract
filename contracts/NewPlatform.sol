@@ -41,8 +41,6 @@ contract NewPlatform {
     mapping (bytes32 => bool) private participantExists; //prevent repeats
     mapping (bytes32 => address) private addresses; //for sending usdt at end
 
-    // uint256 private stopLoss = 50; // stoploss ratio, 50 means .05
-
     address private owner;
     address public fake;
     // how to keep track of tokens, have mapping from string name to the token itself?
@@ -250,7 +248,7 @@ contract NewPlatform {
         require(!(investorExists[hashUsername] || participantExists[hashUsername]), "username taken");
         participantAddressToId[msg.sender] = hashUsername;
         // _currency.approve(address(this), premium); //GET ACTUAL APPROVAL MECHANISM
-        _currency.transferFrom(msg.sender, address(this), 100);
+        _currency.transferFrom(msg.sender, address(this), participantPremium);
         // participantAddresses[hashUsername] = Participant(0, 0);
         _initiateValue(0, hashUsername, 0, false, false, msg.sender); 
         emit newParticipant(hashUsername);
