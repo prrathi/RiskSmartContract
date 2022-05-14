@@ -7,7 +7,6 @@ import {Trading} from "./Trading.sol";
 contract NewPlatform {
     uint256 public time;
     uint256 public constant duration= 30*24*24*60;
-    bool private canReset = true;
     mapping(bytes32 => uint256) private _balances;
 
     //risk, premiums, and interest
@@ -52,6 +51,7 @@ contract NewPlatform {
 
     modifier duringSession() {
         require(time > 0, "no current session");
+        require(!_resetTime());
         _;
     }
 
@@ -147,7 +147,9 @@ contract NewPlatform {
         time = block.timestamp;
     }
 
-    function _resetTimeCycle() public onlyOwner {
+    function _resetTimeCycle() public onlyOwner { 
+        // this would eventually be changed to private so owner can't game the system
+
         // first do the premium allocation to investors
         // then return things and reset
         _payPremium();
@@ -193,12 +195,17 @@ contract NewPlatform {
         isParticipantOpen = true;
     }
 
-    function _getTime() public returns (uint256) {
+    function _resetTime() private returns (bool) {
         bool expired = (block.timestamp - time) >= duration;
-        if(expired && canReset) {
+        if(expired) {
             time = 0;
             _resetTimeCycle();
         } 
+        return expired;
+    }
+
+    function _getTime() public returns (uint256) {
+        _resetTime();
         return block.timestamp - time;
     }
 
