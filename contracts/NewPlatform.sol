@@ -285,7 +285,8 @@ contract NewPlatform {
         }
         uint256 numStake = _capital/Token(tokens[token])._getAmountPerStake();
         uint256 capital = numStake * Token(tokens[token])._getAmountPerStake();
-        require((totalInterest + Token(tokens[token]).investorInterest() * capital / 1000) < (participantPremium * participantIds.length), "not enough participants in pool");
+        uint tmp = Token(tokens[token]).investorInterest() * capital / 1000);
+        require((totalInterest + tmp) < (participantPremium * participantIds.length), "not enough participants in pool");
         // usdt.approve(address(this), _capital); //GET ACTUAL APPROVAL MECHANISM
         _currency.transferFrom(msg.sender, address(this), _capital);
         if (_capital > capital) {
